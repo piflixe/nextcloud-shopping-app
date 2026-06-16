@@ -1,0 +1,508 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'l10n/app_strings.dart';
+import 'models/shopping_list.dart';
+import 'services/app_controller.dart';
+import 'services/shopping_repository.dart';
+import 'widgets/edit_item_dialog.dart';
+import 'widgets/shopping_item_tile.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  final preferences = await SharedPreferencesWithCache.create(
+    cacheOptions: const SharedPreferencesWithCacheOptions(
+      allowList: ShoppingRepository.preferenceKeys,
+    ),
+  );
+  final repository = ShoppingRepository(preferences: preferences);
+  runApp(ShoppingApp(controller: AppController(repository)));
+}
+
+class ShoppingApp extends StatelessWidget {
+  const ShoppingApp({super.key, required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Shopping list',
+          debugShowCheckedModeBanner: false,
+          locale: controller.languageCode == null
+              ? null
+              : Locale(controller.languageCode!),
+          supportedLocales: AppStrings.supportedLocales,
+          localizationsDelegates: const [
+            AppStrings.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          themeMode: ThemeMode.system,
+          theme: _buildTheme(Brightness.light),
+          darkTheme: _buildTheme(Brightness.dark),
+          home: ShoppingHomePage(controller: controller),
+        );
+      },
+    );
+  }
+
+  ThemeData _buildTheme(Brightness brightness) {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF21736B),
+      brightness: brightness,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scheme.surface,
+      cardTheme: const CardThemeData(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+        ),
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+        ),
+      ),
+    );
+  }
+}
+
+class ShoppingHomePage extends StatefulWidget {
+  const ShoppingHomePage({super.key, required this.controller});
+
+  final AppController controller;
+
+  @override
+  State<ShoppingHomePage> createState() => _ShoppingHomePageState();
+}
+
+class _ShoppingHomePageState extends State<ShoppingHomePage> {
+  final TextEditingController _addController = TextEditingController();
+  String? _lastShownMessage;
+
+  AppController get controller => widget.controller;
+
+  @override
+  void dispose() {
+    _addController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        _showMessageIfNeeded(context);
+        final strings = AppStrings.of(context);
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(strings.appTitle),
+            actions: [
+              IconButton(
+                onPressed: controller.isBusy ? null : controller.openDocument,
+                tooltip: strings.openJson,
+                icon: const Icon(Icons.folder_open_outlined),
+              ),
+              if (controller.hasLinkedDocument)
+                IconButton(
+                  onPressed: controller.isBusy
+                      ? null
+                      : controller.reloadDocument,
+                  tooltip: strings.reload,
+                  icon: const Icon(Icons.sync_outlined),
+                ),
+              IconButton(
+                onPressed: () => _showSettings(context),
+                tooltip: strings.settings,
+                icon: const Icon(Icons.settings_outlined),
+              ),
+            ],
+          ),
+          body: Column(
+            children: [
+              if (controller.isBusy) const LinearProgressIndicator(),
+              _SyncStatus(controller: controller),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  children: [
+                    _ItemSection(
+                      title: strings.openItems,
+                      emptyText: strings.noOpenItems,
+                      items: controller.list.openItems,
+                      onTap: controller.toggleItem,
+                      onLongPress: _editItem,
+                    ),
+                    const SizedBox(height: 22),
+                    _ItemSection(
+                      title: strings.lastUsed,
+                      emptyText: strings.noLastUsedItems,
+                      items: controller.list.lastUsedItems,
+                      onTap: controller.toggleItem,
+                      onLongPress: _editItem,
+                    ),
+                  ],
+                ),
+              ),
+              _AddItemBar(
+                controller: controller,
+                textController: _addController,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showMessageIfNeeded(BuildContext context) {
+    final message = controller.message;
+    if (message == null || message == _lastShownMessage) {
+      return;
+    }
+    _lastShownMessage = message;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+      controller.clearMessage();
+    });
+  }
+
+  Future<void> _editItem(ShoppingItem item) async {
+    final result = await showEditItemDialog(context: context, item: item);
+    if (result == null) {
+      return;
+    }
+    if (result.delete) {
+      await controller.removeItem(item);
+      return;
+    }
+    final updatedItem = result.item;
+    if (updatedItem != null) {
+      await controller.updateItem(updatedItem);
+    }
+  }
+
+  Future<void> _showSettings(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final languageSelection = controller.languageCode ?? 'system';
+    return showDialog<void>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(strings.settings),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
+            child: Text(
+              strings.language,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+          _LanguageOptionTile(
+            selected: languageSelection == 'system',
+            title: Text(strings.systemLanguage),
+            onTap: () {
+              controller.setLanguageCode(null);
+              Navigator.of(context).pop();
+            },
+          ),
+          _LanguageOptionTile(
+            selected: languageSelection == 'de',
+            title: Text(strings.german),
+            onTap: () {
+              controller.setLanguageCode('de');
+              Navigator.of(context).pop();
+            },
+          ),
+          _LanguageOptionTile(
+            selected: languageSelection == 'en',
+            title: Text(strings.english),
+            onTap: () {
+              controller.setLanguageCode('en');
+              Navigator.of(context).pop();
+            },
+          ),
+          if (controller.hasLinkedDocument)
+            ListTile(
+              leading: const Icon(Icons.link_off_outlined),
+              title: Text(strings.unlink),
+              onTap: () {
+                controller.unlinkDocument();
+                Navigator.of(context).pop();
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LanguageOptionTile extends StatelessWidget {
+  const _LanguageOptionTile({
+    required this.selected,
+    required this.title,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final Widget title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(
+        selected
+            ? Icons.radio_button_checked_outlined
+            : Icons.radio_button_unchecked_outlined,
+      ),
+      title: title,
+      onTap: onTap,
+    );
+  }
+}
+
+class _SyncStatus extends StatelessWidget {
+  const _SyncStatus({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final linkedName = controller.linkedDocumentName;
+    final title = linkedName == null ? strings.localOnly : strings.linkedFile;
+    final subtitle = linkedName ?? strings.syncHint;
+
+    return Material(
+      color: colors.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              linkedName == null
+                  ? Icons.cloud_off_outlined
+                  : Icons.cloud_done_outlined,
+              color: colors.onSurfaceVariant,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemSection extends StatelessWidget {
+  const _ItemSection({
+    required this.title,
+    required this.emptyText,
+    required this.items,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  final String title;
+  final String emptyText;
+  final List<ShoppingItem> items;
+  final ValueChanged<ShoppingItem> onTap;
+  final ValueChanged<ShoppingItem> onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Center(
+              child: Text(
+                emptyText,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.88,
+            ),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return ShoppingItemTile(
+                item: item,
+                onTap: () => onTap(item),
+                onLongPress: () => onLongPress(item),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _AddItemBar extends StatelessWidget {
+  const _AddItemBar({required this.controller, required this.textController});
+
+  final AppController controller;
+  final TextEditingController textController;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final colors = Theme.of(context).colorScheme;
+
+    return SafeArea(
+      top: false,
+      child: Material(
+        color: colors.surface,
+        elevation: 6,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: AnimatedBuilder(
+            animation: textController,
+            builder: (context, _) {
+              final suggestions = controller.suggestionsFor(
+                textController.text,
+              );
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (suggestions.isNotEmpty) ...[
+                    Text(
+                      strings.chooseSuggestion,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 42,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: suggestions.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final item = suggestions[index];
+                          return ActionChip(
+                            avatar: const Icon(
+                              Icons.history_outlined,
+                              size: 18,
+                            ),
+                            label: Text(item.name),
+                            onPressed: () {
+                              textController.clear();
+                              controller.toggleItem(item);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: textController,
+                          textCapitalization: TextCapitalization.sentences,
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            hintText: strings.addItemHint,
+                            prefixIcon: const Icon(
+                              Icons.add_shopping_cart_outlined,
+                            ),
+                            isDense: true,
+                          ),
+                          onSubmitted: (_) => _submit(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: _submit,
+                        style: FilledButton.styleFrom(
+                          fixedSize: const Size(48, 48),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    final text = textController.text;
+    textController.clear();
+    controller.addOrReactivateItem(text);
+  }
+}

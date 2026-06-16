@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-06-16T20:00:00.000Z",
+  "items": [
+    {
+      "id": "milk",
+      "name": "Milk",
+      "amount": "1 l",
+      "note": "",
+      "icon": "milk",
+      "order": 0,
+      "state": "open"
+    },
+    {
+      "id": "bread",
+      "name": "Bread",
+      "amount": "",
+      "note": "",
+      "icon": "bread",
+      "order": 1,
+      "state": "open"
+    },
+    {
+      "id": "apples",
+      "name": "Apples",
+      "amount": "6",
+      "note": "",
+      "icon": "apple",
+      "order": 2,
+      "state": "open"
+    },
+    {
+      "id": "pasta",
+      "name": "Pasta",
+      "amount": "",
+      "note": "",
+      "icon": "pasta",
+      "order": 0,
+      "state": "lastUsed"
+    },
+    {
+      "id": "tomatoes",
+      "name": "Tomatoes",
+      "amount": "",
+      "note": "",
+      "icon": "tomato",
+      "order": 1,
+      "state": "lastUsed"
+    }
+  ]
+}

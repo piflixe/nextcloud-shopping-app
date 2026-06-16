@@ -2,6 +2,13 @@
 .gradle/
 build/
 
+# Local Flutter/Codex tool caches
+.appdata/
+.pub-cache/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
 # Local configuration file (sdk path, etc)
 local.properties
 
