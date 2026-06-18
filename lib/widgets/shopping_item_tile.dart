@@ -51,13 +51,21 @@ class ShoppingItemTile extends StatelessWidget {
             builder: (context, constraints) {
               final hasAmount = item.amount.trim().isNotEmpty;
               final shortestSide = constraints.biggest.shortestSide;
-              final iconSize = (shortestSide * (hasAmount ? 0.38 : 0.48))
-                  .clamp(hasAmount ? 40.0 : 44.0, hasAmount ? 48.0 : 58.0)
+              final textHeight = (shortestSide * (hasAmount ? 0.27 : 0.36))
+                  .clamp(hasAmount ? 28.0 : 36.0, hasAmount ? 36.0 : 48.0)
                   .toDouble();
-              final textHeight = hasAmount ? 28.0 : 40.0;
+              final reservedHeight =
+                  10 + textHeight + (hasAmount ? 22.0 : 0.0) + 8;
+              final maxIconByHeight = (shortestSide - reservedHeight).clamp(
+                38.0,
+                76.0,
+              );
+              final iconSize = (shortestSide * (hasAmount ? 0.43 : 0.56))
+                  .clamp(38.0, maxIconByHeight)
+                  .toDouble();
 
               return Padding(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -73,8 +81,8 @@ class ShoppingItemTile extends StatelessWidget {
                       width: double.infinity,
                       child: AutoFitText(
                         text: item.name,
-                        maxFontSize: 17,
-                        minFontSize: 10,
+                        maxFontSize: 20,
+                        minFontSize: 11,
                         style: Theme.of(context).textTheme.labelLarge!.copyWith(
                           color: foreground,
                           fontWeight: FontWeight.w800,

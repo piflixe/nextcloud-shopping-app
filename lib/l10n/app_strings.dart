@@ -29,10 +29,16 @@ class AppStrings {
   String get chooseFolder =>
       _isGerman ? 'Speicherordner wählen' : 'Choose storage folder';
 
+  String get chooseFolderHint => _isGerman
+      ? 'Legt fest, wo die JSON dieser Liste geteilt wird.'
+      : 'Choose where this list JSON is shared.';
+
   String get localJson => _isGerman ? 'Lokale JSON' : 'Local JSON';
 
   String get linkedStorage =>
       _isGerman ? 'Verknüpfter Speicherort' : 'Linked storage';
+
+  String get storage => _isGerman ? 'Speicher' : 'Storage';
 
   String get openItems => _isGerman ? 'Offen' : 'Open';
 
@@ -43,9 +49,46 @@ class AppStrings {
 
   String get openJson => _isGerman ? 'JSON öffnen' : 'Open JSON';
 
-  String get reload => _isGerman ? 'Neu laden' : 'Reload';
+  String get reload => _isGerman ? 'Aus Datei neu laden' : 'Reload from file';
 
-  String get unlink => _isGerman ? 'Trennen' : 'Unlink';
+  String get reloadHint => _isGerman
+      ? 'Ersetzt die lokale Liste durch den Stand der verknüpften JSON.'
+      : 'Replace the local list with the linked JSON content.';
+
+  String get unlink => _isGerman ? 'Speicherort trennen' : 'Unlink storage';
+
+  String get unlinkHint => _isGerman
+      ? 'Die Liste bleibt lokal erhalten, wird aber nicht mehr synchronisiert.'
+      : 'The list stays local but is no longer synced.';
+
+  String get syncNow => _isGerman ? 'Jetzt synchronisieren' : 'Sync now';
+
+  String get syncNowHint => _isGerman
+      ? 'Schreibt ausstehende Änderungen sofort in die verknüpfte JSON.'
+      : 'Write pending changes to the linked JSON now.';
+
+  String get synced => _isGerman ? 'Synchronisiert' : 'Synced';
+
+  String get syncing => _isGerman ? 'Synchronisiere ...' : 'Syncing ...';
+
+  String get syncPending =>
+      _isGerman ? 'Änderungen warten auf Auto-Sync' : 'Changes pending sync';
+
+  String get syncError => _isGerman ? 'Sync fehlgeschlagen' : 'Sync failed';
+
+  String get autoSync => _isGerman ? 'Auto-Sync' : 'Auto sync';
+
+  String get autoSyncHint => _isGerman
+      ? 'Synchronisiert nach Änderungen automatisch nach einer kurzen Pause.'
+      : 'Automatically sync after changes once editing pauses.';
+
+  String get syncDelay => _isGerman ? 'Sync-Pause' : 'Sync delay';
+
+  String syncDelayValue(int seconds) {
+    return _isGerman
+        ? '$seconds Sekunden nach der letzten Änderung'
+        : '$seconds seconds after the last change';
+  }
 
   String get settings => _isGerman ? 'Einstellungen' : 'Settings';
 
@@ -74,6 +117,8 @@ class AppStrings {
 
   String get icon => _isGerman ? 'Icon' : 'Icon';
 
+  String get iconSearchHint => _isGerman ? 'Icon suchen' : 'Search icons';
+
   String get save => _isGerman ? 'Speichern' : 'Save';
 
   String get cancel => _isGerman ? 'Abbrechen' : 'Cancel';
@@ -83,6 +128,10 @@ class AppStrings {
   String get linkedFile => _isGerman ? 'Verknüpfte Datei' : 'Linked file';
 
   String get localOnly => _isGerman ? 'Lokale Liste' : 'Local list';
+
+  String get localOnlyHint => _isGerman
+      ? 'Keine verknüpfte Datei. Änderungen bleiben auf diesem Gerät.'
+      : 'No linked file. Changes stay on this device.';
 
   String get syncHint => _isGerman
       ? 'Änderungen werden lokal gespeichert und bei verknüpftem Speicherort synchronisiert.'
@@ -96,6 +145,13 @@ class AppStrings {
       _isGerman ? 'Aus zuletzt genutzten Artikeln' : 'From last used items';
 
   String get itemDetails => _isGerman ? 'Details' : 'Details';
+
+  String get search => _isGerman ? 'Suche' : 'Search';
+
+  String get searchHint => _isGerman ? 'Liste durchsuchen' : 'Search the list';
+
+  String get noSearchResults =>
+      _isGerman ? 'Keine Treffer' : 'No matching items';
 }
 
 class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {

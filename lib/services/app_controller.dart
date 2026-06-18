@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../icons/item_icon_catalog.dart';
@@ -5,12 +7,16 @@ import '../models/shopping_list.dart';
 import '../models/shopping_list_store.dart';
 import 'shopping_repository.dart';
 
+enum SyncState { localOnly, synced, pending, syncing, error }
+
 class AppController extends ChangeNotifier {
   AppController(this._repository)
     : _list = _repository.loadActiveList(),
       _lists = _repository.lists,
       _activeProfile = _repository.activeProfile,
-      _languageCode = _repository.languageCode;
+      _languageCode = _repository.languageCode,
+      _autoSyncEnabled = _repository.autoSyncEnabled,
+      _autoSyncDelaySeconds = _repository.autoSyncDelaySeconds;
 
   final ShoppingRepository _repository;
 
@@ -20,6 +26,12 @@ class AppController extends ChangeNotifier {
   String? _languageCode;
   String? _message;
   bool _isBusy = false;
+  bool _autoSyncEnabled;
+  int _autoSyncDelaySeconds;
+  bool _hasPendingSync = false;
+  bool _isSyncing = false;
+  String? _syncError;
+  Timer? _syncTimer;
 
   ShoppingListData get list => _list;
 
@@ -39,9 +51,37 @@ class AppController extends ChangeNotifier {
 
   String? get message => _message;
 
-  bool get isBusy => _isBusy;
+  bool get isBusy => _isBusy || _isSyncing;
+
+  bool get isSyncing => _isSyncing;
+
+  bool get autoSyncEnabled => _autoSyncEnabled;
+
+  int get autoSyncDelaySeconds => _autoSyncDelaySeconds;
+
+  String? get syncError => _syncError;
 
   bool get hasLinkedDocument => _activeProfile.hasLinkedStorage;
+
+  SyncState get syncState {
+    if (!hasLinkedDocument) {
+      return SyncState.localOnly;
+    }
+    if (_isSyncing) {
+      return SyncState.syncing;
+    }
+    if (_syncError != null) {
+      return SyncState.error;
+    }
+    if (_hasPendingSync) {
+      return SyncState.pending;
+    }
+    return SyncState.synced;
+  }
+
+  void disposeController() {
+    _syncTimer?.cancel();
+  }
 
   void clearMessage() {
     _message = null;
@@ -54,27 +94,54 @@ class AppController extends ChangeNotifier {
     await _repository.setLanguageCode(code);
   }
 
+  Future<void> setAutoSyncEnabled(bool enabled) async {
+    _autoSyncEnabled = enabled;
+    if (!enabled) {
+      _syncTimer?.cancel();
+    } else if (_hasPendingSync) {
+      _scheduleAutoSync();
+    }
+    notifyListeners();
+    await _repository.setAutoSyncEnabled(enabled);
+  }
+
+  Future<void> setAutoSyncDelaySeconds(int seconds) async {
+    final clamped = seconds.clamp(10, 600);
+    _autoSyncDelaySeconds = clamped;
+    if (_autoSyncEnabled && _hasPendingSync) {
+      _scheduleAutoSync();
+    }
+    notifyListeners();
+    await _repository.setAutoSyncDelaySeconds(clamped);
+  }
+
   Future<void> switchList(String id) async {
     if (id == _activeProfile.id) {
       return;
     }
+    await flushPendingSync();
     await _runBusy(() async {
       _list = await _repository.switchList(id);
       _refreshProfiles();
+      _resetSyncState();
     });
   }
 
   Future<void> createList(String name) async {
+    await flushPendingSync();
     await _runBusy(() async {
       _list = await _repository.createList(name);
       _refreshProfiles();
+      _resetSyncState();
     });
   }
 
   Future<void> renameActiveList(String name) async {
+    await flushPendingSync();
     await _runBusy(() async {
       _list = await _repository.renameActiveList(name);
       _refreshProfiles();
+      _resetSyncState();
     });
   }
 
@@ -86,6 +153,7 @@ class AppController extends ChangeNotifier {
       }
       _list = loaded;
       _refreshProfiles();
+      _resetSyncState();
     });
   }
 
@@ -93,13 +161,44 @@ class AppController extends ChangeNotifier {
     await _runBusy(() async {
       _list = await _repository.reloadActiveLinkedList();
       _refreshProfiles();
+      _resetSyncState();
     });
   }
 
   Future<void> unlinkDocument() async {
+    _syncTimer?.cancel();
     await _repository.unlinkActiveListStorage();
     _refreshProfiles();
+    _resetSyncState();
     notifyListeners();
+  }
+
+  Future<void> flushPendingSync() async {
+    if (!_hasPendingSync || !hasLinkedDocument) {
+      return;
+    }
+    await syncNow();
+  }
+
+  Future<void> syncNow() async {
+    if (!hasLinkedDocument || _isSyncing) {
+      return;
+    }
+    _syncTimer?.cancel();
+    _isSyncing = true;
+    _message = null;
+    notifyListeners();
+    try {
+      await _repository.syncActiveList(_list);
+      _hasPendingSync = false;
+      _syncError = null;
+    } catch (error) {
+      _syncError = error.toString();
+      _message = _syncError;
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
   }
 
   Future<void> toggleItem(ShoppingItem item) async {
@@ -175,6 +274,19 @@ class AppController extends ChangeNotifier {
         .toList();
   }
 
+  List<ShoppingItem> searchItems(String query) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return _list.items;
+    }
+    final terms = normalized.split(RegExp(r'\s+'));
+    return _list.items.where((item) {
+      final haystack = '${item.name} ${item.amount} ${item.note} ${item.icon}'
+          .toLowerCase();
+      return terms.every(haystack.contains);
+    }).toList();
+  }
+
   int _nextOrder(ShoppingItemState state) {
     final sameState = _list.items.where((item) => item.state == state);
     if (sameState.isEmpty) {
@@ -186,9 +298,16 @@ class AppController extends ChangeNotifier {
 
   Future<void> _save(ShoppingListData nextList) async {
     _list = nextList;
+    _syncError = null;
+    if (hasLinkedDocument) {
+      _hasPendingSync = true;
+    }
     notifyListeners();
     try {
-      await _repository.saveAndSync(nextList);
+      await _repository.saveLocalActiveList(nextList);
+      if (_autoSyncEnabled && hasLinkedDocument) {
+        _scheduleAutoSync();
+      }
     } catch (error) {
       _message = error.toString();
       notifyListeners();
@@ -209,9 +328,23 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  void _scheduleAutoSync() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer(Duration(seconds: _autoSyncDelaySeconds), () {
+      syncNow();
+    });
+  }
+
   void _refreshProfiles() {
     _lists = _repository.lists;
     _activeProfile = _repository.activeProfile;
+  }
+
+  void _resetSyncState() {
+    _syncTimer?.cancel();
+    _hasPendingSync = false;
+    _isSyncing = false;
+    _syncError = null;
   }
 }
 

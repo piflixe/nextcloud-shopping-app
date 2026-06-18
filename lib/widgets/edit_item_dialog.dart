@@ -36,6 +36,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _amountController;
   late final TextEditingController _noteController;
+  late final TextEditingController _iconSearchController;
   late String _iconKey;
 
   @override
@@ -45,6 +46,8 @@ class _EditItemDialogState extends State<_EditItemDialog> {
     _nameController.addListener(_refreshGeneratedPreview);
     _amountController = TextEditingController(text: widget.item.amount);
     _noteController = TextEditingController(text: widget.item.note);
+    _iconSearchController = TextEditingController()
+      ..addListener(_refreshGeneratedPreview);
     _iconKey = widget.item.icon.trim().isEmpty
         ? suggestIconKey(widget.item.name)
         : widget.item.icon;
@@ -56,6 +59,9 @@ class _EditItemDialogState extends State<_EditItemDialog> {
     _nameController.dispose();
     _amountController.dispose();
     _noteController.dispose();
+    _iconSearchController
+      ..removeListener(_refreshGeneratedPreview)
+      ..dispose();
     super.dispose();
   }
 
@@ -93,11 +99,26 @@ class _EditItemDialogState extends State<_EditItemDialog> {
               const SizedBox(height: 18),
               Text(strings.icon, style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 8),
+              TextField(
+                controller: _iconSearchController,
+                decoration: InputDecoration(
+                  hintText: strings.iconSearchHint,
+                  prefixIcon: const Icon(Icons.search_outlined),
+                  isDense: true,
+                  suffixIcon: _iconSearchController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: _iconSearchController.clear,
+                          icon: const Icon(Icons.close_outlined),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final choice in itemIconChoices)
+                  for (final choice in _filteredIconChoices())
                     Tooltip(
                       message: choice.key,
                       child: InkResponse(
@@ -189,6 +210,20 @@ class _EditItemDialogState extends State<_EditItemDialog> {
         ),
       ],
     );
+  }
+
+  List<ItemIconChoice> _filteredIconChoices() {
+    final query = normalizeIconSearchText(_iconSearchController.text);
+    if (query.isEmpty) {
+      return itemIconChoices;
+    }
+    final terms = query.split(RegExp(r'\s+'));
+    return itemIconChoices.where((choice) {
+      final haystack = normalizeIconSearchText(
+        '${choice.key} ${choice.keywords.join(' ')}',
+      );
+      return terms.every(haystack.contains);
+    }).toList();
   }
 
   void _save() {

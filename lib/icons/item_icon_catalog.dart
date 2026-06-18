@@ -88,6 +88,20 @@ const List<ItemIconChoice> itemIconChoices = [
     'melone',
     'wassermelone',
   ]),
+  ItemIconChoice('pineapple', Icons.spa_outlined, ['pineapple', 'ananas']),
+  ItemIconChoice('kiwi', Icons.spa_outlined, ['kiwi']),
+  ItemIconChoice('peach', Icons.spa_outlined, [
+    'peach',
+    'pfirsich',
+    'aprikose',
+    'nektarine',
+  ]),
+  ItemIconChoice('cherry', Icons.spa_outlined, [
+    'cherry',
+    'kirsche',
+    'kirschen',
+  ]),
+  ItemIconChoice('avocado', Icons.spa_outlined, ['avocado']),
   ItemIconChoice('vegetable', Icons.eco_outlined, [
     'vegetable',
     'gemuese',
@@ -137,6 +151,39 @@ const List<ItemIconChoice> itemIconChoices = [
     'sauce',
     'pizza',
   ]),
+  ItemIconChoice('cabbage', Icons.eco_outlined, [
+    'cabbage',
+    'kohl',
+    'rotkohl',
+    'weisskohl',
+    'wirsing',
+  ]),
+  ItemIconChoice('eggplant', Icons.eco_outlined, ['eggplant', 'aubergine']),
+  ItemIconChoice('pumpkin', Icons.eco_outlined, [
+    'pumpkin',
+    'kuerbis',
+    'kurbis',
+  ]),
+  ItemIconChoice('peas', Icons.eco_outlined, ['peas', 'erbse', 'erbsen']),
+  ItemIconChoice('beans', Icons.eco_outlined, [
+    'beans',
+    'bohnen',
+    'kidneybohnen',
+  ]),
+  ItemIconChoice('radish', Icons.eco_outlined, [
+    'radish',
+    'radieschen',
+    'rettich',
+  ]),
+  ItemIconChoice('asparagus', Icons.eco_outlined, ['asparagus', 'spargel']),
+  ItemIconChoice('herbs', Icons.eco_outlined, [
+    'herbs',
+    'kraeuter',
+    'basilikum',
+    'petersilie',
+    'schnittlauch',
+    'koriander',
+  ]),
   ItemIconChoice('bread', Icons.bakery_dining_outlined, [
     'bread',
     'brot',
@@ -157,6 +204,7 @@ const List<ItemIconChoice> itemIconChoices = [
     'biscuit',
   ]),
   ItemIconChoice('cheese', Icons.lunch_dining_outlined, ['cheese', 'kaese']),
+  ItemIconChoice('butter', Icons.inventory_2_outlined, ['butter']),
   ItemIconChoice('egg', Icons.egg_outlined, ['egg', 'eggs', 'ei', 'eier']),
   ItemIconChoice('meat', Icons.set_meal_outlined, [
     'meat',
@@ -214,6 +262,29 @@ const List<ItemIconChoice> itemIconChoices = [
     'mandel',
     'mandeln',
   ]),
+  ItemIconChoice('honey', Icons.inventory_2_outlined, ['honey', 'honig']),
+  ItemIconChoice('jam', Icons.inventory_2_outlined, [
+    'jam',
+    'marmelade',
+    'konfituere',
+  ]),
+  ItemIconChoice('chocolate', Icons.cookie_outlined, [
+    'chocolate',
+    'schokolade',
+    'schoko',
+  ]),
+  ItemIconChoice('chips', Icons.fastfood_outlined, [
+    'chips',
+    'nachos',
+    'cracker',
+  ]),
+  ItemIconChoice('canned', Icons.inventory_2_outlined, [
+    'dose',
+    'dosen',
+    'canned',
+    'konserve',
+  ]),
+  ItemIconChoice('tofu', Icons.inventory_2_outlined, ['tofu']),
   ItemIconChoice('soup', Icons.soup_kitchen_outlined, ['soup', 'suppe']),
   ItemIconChoice('restaurant', Icons.restaurant_outlined, [
     'meal',
@@ -351,7 +422,7 @@ bool isGeneratedIconKey(String key) {
 
 List<String> generatedIconKeysFor(String name) {
   return [
-    for (var variant = 0; variant < 6; variant++)
+    for (var variant = 0; variant < 10; variant++)
       '$generatedIconPrefix$variant',
   ];
 }
@@ -420,6 +491,11 @@ const Set<String> _drawnItemIconKeys = {
   'grapes',
   'strawberry',
   'watermelon',
+  'pineapple',
+  'kiwi',
+  'peach',
+  'cherry',
+  'avocado',
   'lettuce',
   'carrot',
   'cucumber',
@@ -431,8 +507,17 @@ const Set<String> _drawnItemIconKeys = {
   'garlic',
   'corn',
   'tomato',
+  'cabbage',
+  'eggplant',
+  'pumpkin',
+  'peas',
+  'beans',
+  'radish',
+  'asparagus',
+  'herbs',
   'bread',
   'cheese',
+  'butter',
   'egg',
   'fish',
   'pasta',
@@ -443,6 +528,12 @@ const Set<String> _drawnItemIconKeys = {
   'oil',
   'cereal',
   'nuts',
+  'honey',
+  'jam',
+  'chocolate',
+  'chips',
+  'canned',
+  'tofu',
 };
 
 bool hasDrawnItemIcon(String iconKey) {
@@ -535,7 +626,7 @@ class _DrawnItemIconPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final fill = Paint()
-      ..color = color.withValues(alpha: 0.16)
+      ..color = color.withValues(alpha: 0.22)
       ..style = PaintingStyle.fill;
 
     switch (iconKey) {
@@ -579,13 +670,33 @@ class _DrawnItemIconPainter extends CustomPainter {
       case 'watermelon':
         _drawWatermelon(canvas, size, stroke, thinStroke);
         break;
+      case 'pineapple':
+        _drawPineapple(canvas, size, stroke, thinStroke);
+        break;
+      case 'kiwi':
+        _drawKiwi(canvas, size, stroke, thinStroke, fill);
+        break;
+      case 'peach':
+        _drawPeach(canvas, size, stroke, thinStroke, fill);
+        break;
+      case 'cherry':
+        _drawCherry(canvas, size, stroke, thinStroke);
+        break;
+      case 'avocado':
+        _drawAvocado(canvas, size, stroke, thinStroke, fill);
+        break;
       case 'lettuce':
+      case 'cabbage':
+      case 'herbs':
         _drawLettuce(canvas, size, stroke, thinStroke);
         break;
       case 'carrot':
+      case 'radish':
         _drawCarrot(canvas, size, stroke, thinStroke);
         break;
       case 'cucumber':
+      case 'eggplant':
+      case 'asparagus':
         _drawCucumber(canvas, size, stroke, thinStroke);
         break;
       case 'pepper':
@@ -607,9 +718,12 @@ class _DrawnItemIconPainter extends CustomPainter {
         _drawGarlic(canvas, size, stroke, thinStroke);
         break;
       case 'corn':
+      case 'peas':
+      case 'beans':
         _drawCorn(canvas, size, stroke, thinStroke);
         break;
       case 'tomato':
+      case 'pumpkin':
         _drawTomato(canvas, size, stroke, thinStroke, fill);
         break;
       case 'bread':
@@ -617,6 +731,16 @@ class _DrawnItemIconPainter extends CustomPainter {
         break;
       case 'cheese':
         _drawCheese(canvas, size, stroke, thinStroke);
+        break;
+      case 'butter':
+      case 'tofu':
+        _drawBox(
+          canvas,
+          size,
+          stroke,
+          thinStroke,
+          label: iconKey == 'butter' ? 'B' : 'T',
+        );
         break;
       case 'egg':
         _drawEgg(canvas, size, stroke, thinStroke);
@@ -641,6 +765,21 @@ class _DrawnItemIconPainter extends CustomPainter {
       case 'nuts':
         _drawNuts(canvas, size, stroke, thinStroke, fill);
         break;
+      case 'honey':
+      case 'jam':
+      case 'canned':
+        _drawJar(canvas, size, stroke, thinStroke, label: _jarLabel(iconKey));
+        break;
+      case 'chocolate':
+      case 'chips':
+        _drawSnack(
+          canvas,
+          size,
+          stroke,
+          thinStroke,
+          chocolate: iconKey == 'chocolate',
+        );
+        break;
       default:
         _drawBag(canvas, size, stroke, thinStroke, label: '');
     }
@@ -660,6 +799,15 @@ class _DrawnItemIconPainter extends CustomPainter {
       'flour' => 'M',
       'sugar' => 'Z',
       'cereal' => 'O',
+      _ => '',
+    };
+  }
+
+  String _jarLabel(String key) {
+    return switch (key) {
+      'honey' => 'H',
+      'jam' => 'J',
+      'canned' => 'D',
       _ => '',
     };
   }
@@ -695,7 +843,7 @@ class _DrawnItemIconPainter extends CustomPainter {
       Offset(w * 0.5, w * 0.68),
       thinStroke,
     );
-    _drawLabel(canvas, size, label, w * 0.29);
+    _drawLabel(canvas, size, label, w * 0.34);
   }
 
   void _drawBottle(
@@ -926,6 +1074,137 @@ class _DrawnItemIconPainter extends CustomPainter {
     for (final p in [Offset(w * 0.42, w * 0.45), Offset(w * 0.55, w * 0.43)]) {
       canvas.drawCircle(p, w * 0.018, thinStroke);
     }
+  }
+
+  void _drawLeaf(Canvas canvas, double w, Offset origin, Paint stroke) {
+    final path = Path()
+      ..moveTo(origin.dx, origin.dy)
+      ..quadraticBezierTo(
+        origin.dx + w * 0.12,
+        origin.dy - w * 0.08,
+        origin.dx + w * 0.22,
+        origin.dy + w * 0.02,
+      )
+      ..quadraticBezierTo(
+        origin.dx + w * 0.1,
+        origin.dy + w * 0.1,
+        origin.dx,
+        origin.dy,
+      );
+    canvas.drawPath(path, stroke);
+  }
+
+  void _drawPineapple(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke,
+  ) {
+    final w = size.width;
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.32, w * 0.28, w * 0.36, w * 0.56),
+      Radius.circular(w * 0.18),
+    );
+    canvas.drawRRect(body, stroke);
+    for (final x in [0.39, 0.5, 0.61]) {
+      canvas.drawLine(
+        Offset(w * x, w * 0.36),
+        Offset(w * (x - 0.12), w * 0.72),
+        thinStroke,
+      );
+      canvas.drawLine(
+        Offset(w * (x - 0.12), w * 0.36),
+        Offset(w * x, w * 0.72),
+        thinStroke,
+      );
+    }
+    for (final leaf in [
+      [0.5, 0.28, 0.5, 0.08],
+      [0.48, 0.3, 0.34, 0.14],
+      [0.52, 0.3, 0.66, 0.14],
+    ]) {
+      canvas.drawLine(
+        Offset(w * leaf[0], w * leaf[1]),
+        Offset(w * leaf[2], w * leaf[3]),
+        thinStroke,
+      );
+    }
+  }
+
+  void _drawKiwi(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke,
+    Paint fill,
+  ) {
+    final w = size.width;
+    final center = Offset(w * 0.5, w * 0.52);
+    canvas.drawCircle(center, w * 0.28, fill);
+    canvas.drawCircle(center, w * 0.28, stroke);
+    canvas.drawCircle(center, w * 0.08, thinStroke);
+    for (var i = 0; i < 10; i++) {
+      final angle = math.pi * 2 * i / 10;
+      canvas.drawCircle(
+        center + Offset(math.cos(angle), math.sin(angle)) * w * 0.17,
+        w * 0.012,
+        thinStroke,
+      );
+    }
+  }
+
+  void _drawPeach(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke,
+    Paint fill,
+  ) {
+    final w = size.width;
+    final path = Path()
+      ..moveTo(w * 0.5, w * 0.24)
+      ..cubicTo(w * 0.2, w * 0.18, w * 0.17, w * 0.62, w * 0.5, w * 0.84)
+      ..cubicTo(w * 0.83, w * 0.62, w * 0.8, w * 0.18, w * 0.5, w * 0.24);
+    canvas.drawPath(path, fill);
+    canvas.drawPath(path, stroke);
+    canvas.drawLine(
+      Offset(w * 0.5, w * 0.28),
+      Offset(w * 0.52, w * 0.76),
+      thinStroke,
+    );
+    _drawLeaf(canvas, w, Offset(w * 0.57, w * 0.22), thinStroke);
+  }
+
+  void _drawCherry(Canvas canvas, Size size, Paint stroke, Paint thinStroke) {
+    final w = size.width;
+    canvas.drawCircle(Offset(w * 0.4, w * 0.65), w * 0.14, stroke);
+    canvas.drawCircle(Offset(w * 0.62, w * 0.68), w * 0.14, stroke);
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.4, w * 0.5)
+        ..quadraticBezierTo(w * 0.44, w * 0.24, w * 0.62, w * 0.22)
+        ..moveTo(w * 0.62, w * 0.54)
+        ..quadraticBezierTo(w * 0.56, w * 0.3, w * 0.62, w * 0.22),
+      thinStroke,
+    );
+    _drawLeaf(canvas, w, Offset(w * 0.68, w * 0.22), thinStroke);
+  }
+
+  void _drawAvocado(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke,
+    Paint fill,
+  ) {
+    final w = size.width;
+    final path = Path()
+      ..moveTo(w * 0.5, w * 0.17)
+      ..cubicTo(w * 0.24, w * 0.26, w * 0.22, w * 0.68, w * 0.5, w * 0.84)
+      ..cubicTo(w * 0.78, w * 0.68, w * 0.76, w * 0.26, w * 0.5, w * 0.17);
+    canvas.drawPath(path, fill);
+    canvas.drawPath(path, stroke);
+    canvas.drawCircle(Offset(w * 0.5, w * 0.59), w * 0.12, thinStroke);
   }
 
   void _drawLettuce(Canvas canvas, Size size, Paint stroke, Paint thinStroke) {
@@ -1274,7 +1553,106 @@ class _DrawnItemIconPainter extends CustomPainter {
       Offset(w * 0.68, w * 0.66),
       thinStroke,
     );
-    _drawLabel(canvas, size, label, w * 0.28);
+    _drawLabel(canvas, size, label, w * 0.32);
+  }
+
+  void _drawBox(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke, {
+    required String label,
+  }) {
+    final w = size.width;
+    final rect = Rect.fromLTWH(w * 0.22, w * 0.3, w * 0.56, w * 0.38);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(w * 0.06)),
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(w * 0.28, w * 0.42),
+      Offset(w * 0.72, w * 0.42),
+      thinStroke,
+    );
+    _drawLabel(canvas, size, label, w * 0.23);
+  }
+
+  void _drawJar(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke, {
+    required String label,
+  }) {
+    final w = size.width;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.32, w * 0.24, w * 0.36, w * 0.58),
+        Radius.circular(w * 0.08),
+      ),
+      stroke,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.36, w * 0.15, w * 0.28, w * 0.13),
+        Radius.circular(w * 0.04),
+      ),
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(w * 0.36, w * 0.48),
+      Offset(w * 0.64, w * 0.48),
+      thinStroke,
+    );
+    _drawLabel(canvas, size, label, w * 0.2);
+  }
+
+  void _drawSnack(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke, {
+    required bool chocolate,
+  }) {
+    final w = size.width;
+    if (chocolate) {
+      final rect = Rect.fromLTWH(w * 0.24, w * 0.28, w * 0.52, w * 0.44);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(w * 0.04)),
+        stroke,
+      );
+      for (final x in [0.41, 0.58]) {
+        canvas.drawLine(
+          Offset(w * x, w * 0.3),
+          Offset(w * x, w * 0.7),
+          thinStroke,
+        );
+      }
+      canvas.drawLine(
+        Offset(w * 0.26, w * 0.5),
+        Offset(w * 0.74, w * 0.5),
+        thinStroke,
+      );
+      return;
+    }
+
+    final bag = Path()
+      ..moveTo(w * 0.3, w * 0.18)
+      ..lineTo(w * 0.7, w * 0.25)
+      ..lineTo(w * 0.66, w * 0.82)
+      ..lineTo(w * 0.26, w * 0.75)
+      ..close();
+    canvas.drawPath(bag, stroke);
+    canvas.drawLine(
+      Offset(w * 0.34, w * 0.38),
+      Offset(w * 0.66, w * 0.43),
+      thinStroke,
+    );
+    canvas.drawLine(
+      Offset(w * 0.32, w * 0.62),
+      Offset(w * 0.64, w * 0.67),
+      thinStroke,
+    );
   }
 
   void _drawSalt(Canvas canvas, Size size, Paint stroke, Paint thinStroke) {

@@ -70,6 +70,26 @@ create it there using the current local content of the active list.
 After a list has been linked to a shared JSON file, changes shall be saved
 locally and written back to that linked JSON file.
 
+Local saving and shared-file syncing shall be separate operations. Item changes
+shall be written to local app storage immediately.
+
+For linked lists, the app shall provide auto sync after a configurable quiet
+period following the last change.
+
+The default auto-sync quiet period should be 60 seconds.
+
+The user shall be able to enable or disable auto sync in settings.
+
+The user shall be able to adjust the auto-sync delay in settings.
+
+The app should attempt to flush pending sync changes when Android pauses the app,
+for example when the user switches apps or the display turns off.
+
+The app shall provide a manual "sync now" action for linked lists.
+
+The app shall provide a "reload from file" action for linked lists, replacing
+the local list content with the shared JSON content.
+
 The app shall request and persist Android URI permissions where supported, so it
 can continue writing to linked shared files after the initial selection.
 
@@ -113,16 +133,35 @@ repairable by hand if necessary.
 
 The main screen shall show the active list name in the app bar.
 
+The main screen shall not reserve a full-width status row for storage status, so
+more vertical space remains available for list items.
+
+The main screen shall show only a compact online/offline/sync-state icon next to
+the active list name.
+
 Tapping the active list name shall open list management with at least:
 
 - switch list;
 - create new list;
 - rename active list.
 
-The folder icon in the app bar shall choose or update the shared storage folder
-for the active list.
+The app bar shall provide a search icon for full-text list search.
 
-The settings icon shall provide app settings such as language selection.
+The folder/storage action shall be placed in the settings screen, not directly
+on the main list screen.
+
+The settings icon shall open a separate settings screen, not an overlay dialog.
+
+The settings screen shall provide at least:
+
+- storage status;
+- choose storage folder;
+- manual sync now;
+- reload from linked file;
+- unlink storage;
+- auto-sync enabled/disabled setting;
+- auto-sync delay setting;
+- language selection.
 
 The screen shall show open items first.
 
@@ -141,6 +180,8 @@ Item text shall be large and readable.
 Item text shall dynamically shrink where necessary so longer item names fit
 inside the tile without overlapping other content.
 
+Item text shall support wrapping where useful before shrinking too aggressively.
+
 Tapping an open item shall move it to the last-used section.
 
 Tapping an item in the last-used section shall move it back to the open section.
@@ -158,6 +199,11 @@ While typing, suggestions shall appear in a search-as-you-type manner using
 items from the last-used section.
 
 Selecting a suggestion shall reactivate that item.
+
+The list shall be searchable/filterable via full-text search.
+
+The full-text search should search at least item name, amount, additional note,
+and icon key.
 
 ## Icons and Pictograms
 
@@ -182,8 +228,16 @@ wrong icons, for example matching `Reis` as `Ei`.
 
 The user shall be able to choose a different icon in the edit dialog.
 
+The manual icon picker in the edit dialog shall be searchable.
+
 If no catalog pictogram is found, the app shall provide generated fallback icon
 variants in a consistent style.
+
+Pictograms should be large within the square item tiles.
+
+Pictograms should be simple, readable, and slightly playful. They should include
+enough visual detail to distinguish common groceries without becoming visually
+busy.
 
 Future versions should support true AI-generated icons, regeneration, and user
 selection from multiple generated options.

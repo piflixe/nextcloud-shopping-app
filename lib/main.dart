@@ -100,7 +100,14 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
   AppController get controller => widget.controller;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(_LifecycleSyncObserver(controller));
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(_LifecycleSyncObserver(controller));
     _addController.dispose();
     super.dispose();
   }
@@ -120,20 +127,10 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
             ),
             actions: [
               IconButton(
-                onPressed: controller.isBusy
-                    ? null
-                    : controller.linkActiveListToFolder,
-                tooltip: strings.chooseFolder,
-                icon: const Icon(Icons.folder_open_outlined),
+                onPressed: () => _showSearch(context),
+                tooltip: strings.search,
+                icon: const Icon(Icons.search_outlined),
               ),
-              if (controller.hasLinkedDocument)
-                IconButton(
-                  onPressed: controller.isBusy
-                      ? null
-                      : controller.reloadDocument,
-                  tooltip: strings.reload,
-                  icon: const Icon(Icons.sync_outlined),
-                ),
               IconButton(
                 onPressed: () => _showSettings(context),
                 tooltip: strings.settings,
@@ -144,7 +141,6 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
           body: Column(
             children: [
               if (controller.isBusy) const LinearProgressIndicator(),
-              _SyncStatus(controller: controller),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -175,6 +171,14 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
           ),
         );
       },
+    );
+  }
+
+  void _showSearch(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ShoppingSearchPage(controller: controller),
+      ),
     );
   }
 
@@ -304,58 +308,36 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
     ).whenComplete(textController.dispose);
   }
 
-  Future<void> _showSettings(BuildContext context) {
-    final strings = AppStrings.of(context);
-    final languageSelection = controller.languageCode ?? 'system';
-    return showDialog<void>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(strings.settings),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
-            child: Text(
-              strings.language,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-          ),
-          _LanguageOptionTile(
-            selected: languageSelection == 'system',
-            title: Text(strings.systemLanguage),
-            onTap: () {
-              controller.setLanguageCode(null);
-              Navigator.of(context).pop();
-            },
-          ),
-          _LanguageOptionTile(
-            selected: languageSelection == 'de',
-            title: Text(strings.german),
-            onTap: () {
-              controller.setLanguageCode('de');
-              Navigator.of(context).pop();
-            },
-          ),
-          _LanguageOptionTile(
-            selected: languageSelection == 'en',
-            title: Text(strings.english),
-            onTap: () {
-              controller.setLanguageCode('en');
-              Navigator.of(context).pop();
-            },
-          ),
-          if (controller.hasLinkedDocument)
-            ListTile(
-              leading: const Icon(Icons.link_off_outlined),
-              title: Text(strings.unlink),
-              onTap: () {
-                controller.unlinkDocument();
-                Navigator.of(context).pop();
-              },
-            ),
-        ],
+  void _showSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SettingsPage(controller: controller),
       ),
     );
   }
+}
+
+class _LifecycleSyncObserver extends WidgetsBindingObserver {
+  _LifecycleSyncObserver(this.controller);
+
+  final AppController controller;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      controller.flushPendingSync();
+    }
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is _LifecycleSyncObserver && other.controller == controller;
+  }
+
+  @override
+  int get hashCode => controller.hashCode;
 }
 
 sealed class _ListDialogAction {
@@ -394,9 +376,9 @@ class _ListTitleButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
-        icon: const Icon(Icons.list_alt_outlined),
+        icon: _SyncStateIcon(controller: controller),
         label: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 220),
+          constraints: const BoxConstraints(maxWidth: 260),
           child: Text(
             controller.activeListName,
             maxLines: 1,
@@ -408,6 +390,28 @@ class _ListTitleButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SyncStateIcon extends StatelessWidget {
+  const _SyncStateIcon({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final icon = switch (controller.syncState) {
+      SyncState.localOnly => Icons.cloud_off_outlined,
+      SyncState.synced => Icons.cloud_done_outlined,
+      SyncState.pending => Icons.cloud_queue_outlined,
+      SyncState.syncing => Icons.cloud_sync_outlined,
+      SyncState.error => Icons.cloud_off_outlined,
+    };
+    final color = controller.syncState == SyncState.error
+        ? colors.error
+        : colors.onSurfaceVariant;
+    return Icon(icon, color: color);
   }
 }
 
@@ -469,8 +473,226 @@ class _LanguageOptionTile extends StatelessWidget {
   }
 }
 
-class _SyncStatus extends StatelessWidget {
-  const _SyncStatus({required this.controller});
+class ShoppingSearchPage extends StatefulWidget {
+  const ShoppingSearchPage({super.key, required this.controller});
+
+  final AppController controller;
+
+  @override
+  State<ShoppingSearchPage> createState() => _ShoppingSearchPageState();
+}
+
+class _ShoppingSearchPageState extends State<ShoppingSearchPage> {
+  final TextEditingController _searchController = TextEditingController();
+
+  AppController get controller => widget.controller;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    return AnimatedBuilder(
+      animation: Listenable.merge([controller, _searchController]),
+      builder: (context, _) {
+        final results = controller.searchItems(_searchController.text);
+        final openItems = results
+            .where((item) => item.state == ShoppingItemState.open)
+            .toList();
+        final lastUsedItems = results
+            .where((item) => item.state == ShoppingItemState.lastUsed)
+            .toList();
+        return Scaffold(
+          appBar: AppBar(title: Text(strings.search)),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: strings.searchHint,
+                  prefixIcon: const Icon(Icons.search_outlined),
+                  suffixIcon: _searchController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: _searchController.clear,
+                          icon: const Icon(Icons.close_outlined),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (results.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(child: Text(strings.noSearchResults)),
+                )
+              else ...[
+                _ItemSection(
+                  title: strings.openItems,
+                  emptyText: strings.noOpenItems,
+                  items: openItems,
+                  onTap: controller.toggleItem,
+                  onLongPress: _editItem,
+                ),
+                const SizedBox(height: 22),
+                _ItemSection(
+                  title: strings.lastUsed,
+                  emptyText: strings.noLastUsedItems,
+                  items: lastUsedItems,
+                  onTap: controller.toggleItem,
+                  onLongPress: _editItem,
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _editItem(ShoppingItem item) async {
+    final result = await showEditItemDialog(context: context, item: item);
+    if (result == null) {
+      return;
+    }
+    if (result.delete) {
+      await controller.removeItem(item);
+      return;
+    }
+    final updatedItem = result.item;
+    if (updatedItem != null) {
+      await controller.updateItem(updatedItem);
+    }
+  }
+}
+
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key, required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final strings = AppStrings.of(context);
+        final languageSelection = controller.languageCode ?? 'system';
+        return Scaffold(
+          appBar: AppBar(title: Text(strings.settings)),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              _SettingsSectionTitle(strings.storage),
+              _StorageStatusTile(controller: controller),
+              ListTile(
+                leading: const Icon(Icons.folder_open_outlined),
+                title: Text(strings.chooseFolder),
+                subtitle: Text(strings.chooseFolderHint),
+                onTap: controller.isBusy
+                    ? null
+                    : controller.linkActiveListToFolder,
+              ),
+              ListTile(
+                leading: const Icon(Icons.sync_outlined),
+                title: Text(strings.syncNow),
+                subtitle: Text(strings.syncNowHint),
+                onTap: controller.hasLinkedDocument && !controller.isBusy
+                    ? controller.syncNow
+                    : null,
+              ),
+              if (controller.hasLinkedDocument)
+                ListTile(
+                  leading: const Icon(Icons.download_outlined),
+                  title: Text(strings.reload),
+                  subtitle: Text(strings.reloadHint),
+                  onTap: controller.isBusy ? null : controller.reloadDocument,
+                ),
+              if (controller.hasLinkedDocument)
+                ListTile(
+                  leading: const Icon(Icons.link_off_outlined),
+                  title: Text(strings.unlink),
+                  subtitle: Text(strings.unlinkHint),
+                  onTap: controller.unlinkDocument,
+                ),
+              const Divider(height: 28),
+              _SettingsSectionTitle(strings.autoSync),
+              SwitchListTile(
+                secondary: const Icon(Icons.cloud_sync_outlined),
+                title: Text(strings.autoSync),
+                subtitle: Text(strings.autoSyncHint),
+                value: controller.autoSyncEnabled,
+                onChanged: controller.setAutoSyncEnabled,
+              ),
+              ListTile(
+                leading: const Icon(Icons.timer_outlined),
+                title: Text(strings.syncDelay),
+                subtitle: Text(
+                  strings.syncDelayValue(controller.autoSyncDelaySeconds),
+                ),
+              ),
+              Slider(
+                value: controller.autoSyncDelaySeconds.toDouble(),
+                min: 10,
+                max: 300,
+                divisions: 29,
+                label: '${controller.autoSyncDelaySeconds} s',
+                onChanged: controller.autoSyncEnabled
+                    ? (value) =>
+                          controller.setAutoSyncDelaySeconds(value.round())
+                    : null,
+              ),
+              const Divider(height: 28),
+              _SettingsSectionTitle(strings.language),
+              _LanguageOptionTile(
+                selected: languageSelection == 'system',
+                title: Text(strings.systemLanguage),
+                onTap: () => controller.setLanguageCode(null),
+              ),
+              _LanguageOptionTile(
+                selected: languageSelection == 'de',
+                title: Text(strings.german),
+                onTap: () => controller.setLanguageCode('de'),
+              ),
+              _LanguageOptionTile(
+                selected: languageSelection == 'en',
+                title: Text(strings.english),
+                onTap: () => controller.setLanguageCode('en'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SettingsSectionTitle extends StatelessWidget {
+  const _SettingsSectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Text(
+        text,
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _StorageStatusTile extends StatelessWidget {
+  const _StorageStatusTile({required this.controller});
 
   final AppController controller;
 
@@ -484,44 +706,20 @@ class _SyncStatus extends StatelessWidget {
         : strings.linkedStorage;
     final subtitle =
         linkedName ?? '${strings.localJson}: ${controller.activeLocalFileName}';
+    final syncDetail = switch (controller.syncState) {
+      SyncState.localOnly => strings.localOnlyHint,
+      SyncState.synced => strings.synced,
+      SyncState.pending => strings.syncPending,
+      SyncState.syncing => strings.syncing,
+      SyncState.error => controller.syncError ?? strings.syncError,
+    };
 
-    return Material(
-      color: colors.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            Icon(
-              linkedName == null
-                  ? Icons.cloud_off_outlined
-                  : Icons.cloud_done_outlined,
-              color: colors.onSurfaceVariant,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return ListTile(
+      leading: _SyncStateIcon(controller: controller),
+      title: Text(title),
+      subtitle: Text('$subtitle\n$syncDetail'),
+      isThreeLine: true,
+      textColor: controller.syncState == SyncState.error ? colors.error : null,
     );
   }
 }

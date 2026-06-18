@@ -17,11 +17,19 @@ The app is currently built and tested as an Android app. The main branch is
 - One local JSON file per list in the app's private Android storage.
 - Optional shared storage folder per list through Android's Storage Access
   Framework.
+- Linked storage management in a dedicated settings screen.
+- Compact sync status icon next to the active list name instead of a full status
+  strip on the list screen.
 - Automatic shared JSON handling:
   - if `<list name>.json` exists in the selected folder, it is loaded and used
     as the active list;
   - if it does not exist, the current local list is written into that folder.
 - Persistent Android URI permissions for later writes to the linked JSON file.
+- Debounced auto sync after item changes. The default delay is 60 seconds after
+  the last change and can be adjusted in settings.
+- Pending changes are also flushed when the app is paused or sent to the
+  background.
+- Manual "sync now" and "reload from file" actions in settings.
 - Nextcloud-compatible fallback for providers that do not support direct file
   creation through `DocumentsContract.createDocument`.
 - Open and last-used item sections.
@@ -29,12 +37,15 @@ The app is currently built and tested as an Android app. The main branch is
 - Warm red tiles for open items and green/turquoise tiles for last-used items.
 - Tap an item to move it between open and last-used.
 - Long-press an item to edit name, amount, note, and icon.
+- Searchable manual icon picker in the item edit dialog.
 - Bottom input field for adding items.
 - Search-as-you-type suggestions from the last-used section.
+- Full-text list search through the search icon in the app bar.
 - Expanded built-in pictogram catalog with keyword-based icon assignment.
-- Larger tile pictograms and dynamic text fitting for longer item names.
+- Larger tile pictograms, larger tile text, wrapping, and dynamic text fitting
+  for longer item names.
 - Custom drawn vector pictograms for common groceries such as milk, juice, rice,
-  flour, bread, fruit, and vegetables.
+  flour, bread, fruit, vegetables, snacks, jars, cans, and dry goods.
 - Deterministic generated fallback icons with selectable variants for unmatched
   items.
 
@@ -46,13 +57,24 @@ Use the list title in the app bar to:
 - create a new list;
 - rename the active list.
 
-Use the folder icon in the app bar to choose the storage folder for the active
-list. This is the intended setup for shared folders in Nextcloud, Google Drive,
-Dropbox, or similar apps.
+The icon next to the list name shows the sync state:
 
-By default, lists are local only. The status strip below the app bar shows the
-local JSON file name until a shared folder has been linked. After linking, it
-shows the linked storage location.
+- cloud off: local-only list;
+- cloud done: linked and synced;
+- cloud queue: linked with pending local changes;
+- cloud sync: currently syncing;
+- cloud off/error color: sync error.
+
+Use the search icon in the app bar to open full-text search across item name,
+amount, note, and icon key.
+
+Use the settings icon to open the dedicated settings screen. The settings screen
+contains language settings, storage status, folder selection, manual sync,
+reload from file, unlink storage, and auto-sync configuration.
+
+By default, lists are local only. The settings screen shows the local JSON file
+name until a shared folder has been linked. After linking, it shows the linked
+storage location.
 
 ## Shared Folder Behavior
 
@@ -70,7 +92,9 @@ When a shared folder is selected:
    list with the shared content.
 3. If the file does not exist, the app writes the current local list into the
    selected folder.
-4. Later item changes are saved locally and written back to the linked JSON.
+4. Later item changes are saved locally immediately.
+5. Linked lists are written back to the shared JSON after the configured
+   auto-sync delay or when manual sync is triggered.
 
 When using Nextcloud, Android may show an additional "create document" flow if
 the Nextcloud document provider refuses direct file creation. Confirm the
@@ -79,6 +103,20 @@ folder again and stores the resulting document URI.
 
 Renaming a linked list creates or switches to the JSON file matching the new
 list name. Old shared JSON files are not deleted automatically.
+
+## Sync Behavior
+
+The app intentionally separates local saving from shared-file syncing. Every
+item change is written to the local app storage first. If the list has a linked
+shared JSON file, the app schedules an auto sync after a quiet period. The
+default quiet period is 60 seconds and can be changed in settings.
+
+This avoids writing to Nextcloud or another provider after every small edit,
+while still reducing the risk of forgotten manual syncs. The app also tries to
+flush pending changes when Android pauses the app, for example when the display
+turns off or the user switches away.
+
+If auto sync is disabled, the user can still use "sync now" in settings.
 
 ## JSON Schema
 

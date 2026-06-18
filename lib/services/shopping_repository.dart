@@ -20,6 +20,8 @@ class ShoppingRepository {
   static const _legacyDocumentNameKey = 'linked_document_name';
   static const _manifestKey = 'shopping_lists_manifest';
   static const _languageKey = 'language_code';
+  static const _autoSyncEnabledKey = 'auto_sync_enabled';
+  static const _autoSyncDelaySecondsKey = 'auto_sync_delay_seconds';
 
   static const preferenceKeys = {
     _legacyListJsonKey,
@@ -27,6 +29,8 @@ class ShoppingRepository {
     _legacyDocumentNameKey,
     _manifestKey,
     _languageKey,
+    _autoSyncEnabledKey,
+    _autoSyncDelaySecondsKey,
   };
 
   final SharedPreferencesWithCache _preferences;
@@ -42,6 +46,11 @@ class ShoppingRepository {
   ShoppingListProfile get activeProfile => _manifest.activeProfile;
 
   String? get languageCode => _preferences.getString(_languageKey);
+
+  bool get autoSyncEnabled => _preferences.getBool(_autoSyncEnabledKey) ?? true;
+
+  int get autoSyncDelaySeconds =>
+      _preferences.getInt(_autoSyncDelaySecondsKey) ?? 60;
 
   Future<void> initialize() async {
     final path =
@@ -65,6 +74,17 @@ class ShoppingRepository {
     } else {
       await _preferences.setString(_languageKey, code);
     }
+  }
+
+  Future<void> setAutoSyncEnabled(bool enabled) {
+    return _preferences.setBool(_autoSyncEnabledKey, enabled);
+  }
+
+  Future<void> setAutoSyncDelaySeconds(int seconds) {
+    return _preferences.setInt(
+      _autoSyncDelaySecondsKey,
+      seconds.clamp(10, 600),
+    );
   }
 
   ShoppingListData loadActiveList() {
@@ -204,10 +224,14 @@ class ShoppingRepository {
     return list;
   }
 
-  Future<void> saveAndSync(ShoppingListData list) async {
+  Future<void> saveLocalActiveList(ShoppingListData list) async {
+    _requireInitialized();
+    await _writeLocalList(activeProfile, list);
+  }
+
+  Future<void> syncActiveList(ShoppingListData list) async {
     _requireInitialized();
     final profile = activeProfile;
-    await _writeLocalList(profile, list);
     final uri = profile.linkedDocumentUri;
     if (uri == null || uri.isEmpty) {
       return;
