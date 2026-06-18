@@ -6,7 +6,7 @@ through Android's system document picker, for example by Nextcloud, Google
 Drive, Dropbox, or another Android document provider.
 
 The app is currently built and tested as an Android app. The main branch is
-`main`.
+`main`. The current developer release version is `1.0.1+2`.
 
 ## Current Features
 
@@ -172,6 +172,18 @@ The debug APK is written to:
 build/app/outputs/flutter-apk/app-debug.apk
 ```
 
+Build an installable developer release APK:
+
+```powershell
+flutter build apk --release
+```
+
+The release APK is written to:
+
+```text
+build/app/outputs/flutter-apk/app-release.apk
+```
+
 Install the debug APK on a connected Android phone:
 
 ```powershell
@@ -184,6 +196,25 @@ If `adb` is not in `PATH`, use the Android SDK path directly:
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r build\app\outputs\flutter-apk\app-debug.apk
 ```
 
+Install the release APK directly:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r build\app\outputs\flutter-apk\app-release.apk
+```
+
+## Releases
+
+Release notes are maintained in [CHANGELOG.md](CHANGELOG.md). The release
+process is documented in [docs/release.md](docs/release.md).
+
+Tagged versions matching `v*`, for example `v1.0.1`, trigger the Android release
+workflow in GitHub Actions. The workflow validates the app, builds
+`app-release.apk`, and attaches a named APK to the GitHub Release.
+
+The current APK is a developer/testing release signed with the debug signing
+key. Configure a real Android release keystore before publishing to an app
+store.
+
 ## Current Validation
 
 The current implementation has been checked with:
@@ -191,6 +222,7 @@ The current implementation has been checked with:
 - `flutter analyze`
 - `flutter test`
 - `flutter build apk --debug`
+- `flutter build apk --release`
 - installation on a Moto G84 5G through USB debugging
 
 ## Known Open Points
