@@ -42,6 +42,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.item.name);
+    _nameController.addListener(_refreshGeneratedPreview);
     _amountController = TextEditingController(text: widget.item.amount);
     _noteController = TextEditingController(text: widget.item.note);
     _iconKey = widget.item.icon.trim().isEmpty
@@ -51,6 +52,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
 
   @override
   void dispose() {
+    _nameController.removeListener(_refreshGeneratedPreview);
     _nameController.dispose();
     _amountController.dispose();
     _noteController.dispose();
@@ -116,11 +118,49 @@ class _EditItemDialogState extends State<_EditItemDialog> {
                                   : colors.outlineVariant,
                             ),
                           ),
-                          child: Icon(
-                            choice.icon,
-                            color: choice.key == _iconKey
-                                ? colors.onPrimaryContainer
-                                : colors.onSurfaceVariant,
+                          child: Center(
+                            child: ShoppingItemIcon(
+                              iconKey: choice.key,
+                              name: _nameController.text,
+                              size: 32,
+                              color: choice.key == _iconKey
+                                  ? colors.onPrimaryContainer
+                                  : colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  for (final key in generatedIconKeysFor(_nameController.text))
+                    Tooltip(
+                      message: key,
+                      child: InkResponse(
+                        onTap: () => setState(() => _iconKey = key),
+                        radius: 24,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: key == _iconKey
+                                ? colors.primaryContainer
+                                : colors.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: key == _iconKey
+                                  ? colors.primary
+                                  : colors.outlineVariant,
+                            ),
+                          ),
+                          child: Center(
+                            child: ShoppingItemIcon(
+                              iconKey: key,
+                              name: _nameController.text,
+                              size: 32,
+                              color: key == _iconKey
+                                  ? colors.onPrimaryContainer
+                                  : colors.onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ),
@@ -166,5 +206,11 @@ class _EditItemDialogState extends State<_EditItemDialog> {
         ),
       ),
     );
+  }
+
+  void _refreshGeneratedPreview() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 }

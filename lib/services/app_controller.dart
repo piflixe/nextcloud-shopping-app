@@ -2,25 +2,38 @@ import 'package:flutter/foundation.dart';
 
 import '../icons/item_icon_catalog.dart';
 import '../models/shopping_list.dart';
+import '../models/shopping_list_store.dart';
 import 'shopping_repository.dart';
 
 class AppController extends ChangeNotifier {
   AppController(this._repository)
-    : _list = _repository.loadLocalList(),
-      _linkedDocumentName = _repository.linkedDocumentName,
+    : _list = _repository.loadActiveList(),
+      _lists = _repository.lists,
+      _activeProfile = _repository.activeProfile,
       _languageCode = _repository.languageCode;
 
   final ShoppingRepository _repository;
 
   ShoppingListData _list;
-  String? _linkedDocumentName;
+  List<ShoppingListProfile> _lists;
+  ShoppingListProfile _activeProfile;
   String? _languageCode;
   String? _message;
   bool _isBusy = false;
 
   ShoppingListData get list => _list;
 
-  String? get linkedDocumentName => _linkedDocumentName;
+  List<ShoppingListProfile> get lists => _lists;
+
+  ShoppingListProfile get activeProfile => _activeProfile;
+
+  String get activeListName => _activeProfile.name;
+
+  String get activeLocalFileName => _activeProfile.localFileName;
+
+  String? get linkedDocumentName => _activeProfile.hasLinkedStorage
+      ? _activeProfile.displayStorageName
+      : null;
 
   String? get languageCode => _languageCode;
 
@@ -28,7 +41,7 @@ class AppController extends ChangeNotifier {
 
   bool get isBusy => _isBusy;
 
-  bool get hasLinkedDocument => _linkedDocumentName != null;
+  bool get hasLinkedDocument => _activeProfile.hasLinkedStorage;
 
   void clearMessage() {
     _message = null;
@@ -41,27 +54,51 @@ class AppController extends ChangeNotifier {
     await _repository.setLanguageCode(code);
   }
 
-  Future<void> openDocument() async {
+  Future<void> switchList(String id) async {
+    if (id == _activeProfile.id) {
+      return;
+    }
     await _runBusy(() async {
-      final loaded = await _repository.pickAndLoadDocument();
+      _list = await _repository.switchList(id);
+      _refreshProfiles();
+    });
+  }
+
+  Future<void> createList(String name) async {
+    await _runBusy(() async {
+      _list = await _repository.createList(name);
+      _refreshProfiles();
+    });
+  }
+
+  Future<void> renameActiveList(String name) async {
+    await _runBusy(() async {
+      _list = await _repository.renameActiveList(name);
+      _refreshProfiles();
+    });
+  }
+
+  Future<void> linkActiveListToFolder() async {
+    await _runBusy(() async {
+      final loaded = await _repository.linkActiveListToFolder();
       if (loaded == null) {
         return;
       }
       _list = loaded;
-      _linkedDocumentName = _repository.linkedDocumentName;
+      _refreshProfiles();
     });
   }
 
   Future<void> reloadDocument() async {
     await _runBusy(() async {
-      _list = await _repository.reloadLinkedDocument();
-      _linkedDocumentName = _repository.linkedDocumentName;
+      _list = await _repository.reloadActiveLinkedList();
+      _refreshProfiles();
     });
   }
 
   Future<void> unlinkDocument() async {
-    await _repository.unlinkDocument();
-    _linkedDocumentName = null;
+    await _repository.unlinkActiveListStorage();
+    _refreshProfiles();
     notifyListeners();
   }
 
@@ -170,6 +207,11 @@ class AppController extends ChangeNotifier {
       _isBusy = false;
       notifyListeners();
     }
+  }
+
+  void _refreshProfiles() {
+    _lists = _repository.lists;
+    _activeProfile = _repository.activeProfile;
   }
 }
 

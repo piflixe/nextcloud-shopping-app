@@ -18,6 +18,22 @@ class AppStrings {
 
   String get appTitle => _isGerman ? 'Einkaufsliste' : 'Shopping list';
 
+  String get lists => _isGerman ? 'Listen' : 'Lists';
+
+  String get newList => _isGerman ? 'Neue Liste' : 'New list';
+
+  String get renameList => _isGerman ? 'Liste umbenennen' : 'Rename list';
+
+  String get listName => _isGerman ? 'Listenname' : 'List name';
+
+  String get chooseFolder =>
+      _isGerman ? 'Speicherordner wählen' : 'Choose storage folder';
+
+  String get localJson => _isGerman ? 'Lokale JSON' : 'Local JSON';
+
+  String get linkedStorage =>
+      _isGerman ? 'Verknüpfter Speicherort' : 'Linked storage';
+
   String get openItems => _isGerman ? 'Offen' : 'Open';
 
   String get lastUsed => _isGerman ? 'Zuletzt genutzt' : 'Last used';
@@ -66,12 +82,11 @@ class AppStrings {
 
   String get linkedFile => _isGerman ? 'Verknüpfte Datei' : 'Linked file';
 
-  String get localOnly =>
-      _isGerman ? 'Lokale Liste, keine Datei verknüpft' : 'Local list only';
+  String get localOnly => _isGerman ? 'Lokale Liste' : 'Local list';
 
   String get syncHint => _isGerman
-      ? 'Änderungen werden lokal gespeichert und bei verknüpfter Datei synchronisiert.'
-      : 'Changes are saved locally and synced when a document is linked.';
+      ? 'Änderungen werden lokal gespeichert und bei verknüpftem Speicherort synchronisiert.'
+      : 'Changes are saved locally and synced when storage is linked.';
 
   String get unsupportedPicker => _isGerman
       ? 'Der System-Dateizugriff ist aktuell nur auf Android verfügbar.'

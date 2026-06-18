@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_strings.dart';
 import 'models/shopping_list.dart';
+import 'models/shopping_list_store.dart';
 import 'services/app_controller.dart';
 import 'services/shopping_repository.dart';
 import 'widgets/edit_item_dialog.dart';
@@ -23,6 +24,7 @@ Future<void> main() async {
     ),
   );
   final repository = ShoppingRepository(preferences: preferences);
+  await repository.initialize();
   runApp(ShoppingApp(controller: AppController(repository)));
 }
 
@@ -112,11 +114,16 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
         final strings = AppStrings.of(context);
         return Scaffold(
           appBar: AppBar(
-            title: Text(strings.appTitle),
+            title: _ListTitleButton(
+              controller: controller,
+              onPressed: () => _showListSwitcher(context),
+            ),
             actions: [
               IconButton(
-                onPressed: controller.isBusy ? null : controller.openDocument,
-                tooltip: strings.openJson,
+                onPressed: controller.isBusy
+                    ? null
+                    : controller.linkActiveListToFolder,
+                tooltip: strings.chooseFolder,
                 icon: const Icon(Icons.folder_open_outlined),
               ),
               if (controller.hasLinkedDocument)
@@ -203,6 +210,100 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
     }
   }
 
+  Future<void> _showListSwitcher(BuildContext context) async {
+    final strings = AppStrings.of(context);
+    final action = await showDialog<_ListDialogAction>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(strings.lists),
+        children: [
+          for (final profile in controller.lists)
+            _ShoppingListOptionTile(
+              profile: profile,
+              selected: profile.id == controller.activeProfile.id,
+              onTap: () {
+                Navigator.of(context).pop(_SwitchListAction(profile.id));
+              },
+            ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.add_outlined),
+            title: Text(strings.newList),
+            onTap: () => Navigator.of(context).pop(const _CreateListAction()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.drive_file_rename_outline),
+            title: Text(strings.renameList),
+            onTap: () => Navigator.of(context).pop(const _RenameListAction()),
+          ),
+        ],
+      ),
+    );
+
+    if (!context.mounted || action == null) {
+      return;
+    }
+
+    switch (action) {
+      case _SwitchListAction(:final id):
+        await controller.switchList(id);
+      case _CreateListAction():
+        final name = await _showListNameDialog(
+          context: context,
+          title: strings.newList,
+          initialValue: '',
+        );
+        if (name != null) {
+          await controller.createList(name);
+        }
+      case _RenameListAction():
+        final name = await _showListNameDialog(
+          context: context,
+          title: strings.renameList,
+          initialValue: controller.activeListName,
+        );
+        if (name != null) {
+          await controller.renameActiveList(name);
+        }
+    }
+  }
+
+  Future<String?> _showListNameDialog({
+    required BuildContext context,
+    required String title,
+    required String initialValue,
+  }) {
+    final strings = AppStrings.of(context);
+    final textController = TextEditingController(text: initialValue);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(labelText: strings.listName),
+          onSubmitted: (_) {
+            Navigator.of(context).pop(textController.text.trim());
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop(textController.text.trim());
+            },
+            child: Text(strings.save),
+          ),
+        ],
+      ),
+    ).whenComplete(textController.dispose);
+  }
+
   Future<void> _showSettings(BuildContext context) {
     final strings = AppStrings.of(context);
     final languageSelection = controller.languageCode ?? 'system';
@@ -257,6 +358,92 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
   }
 }
 
+sealed class _ListDialogAction {
+  const _ListDialogAction();
+}
+
+class _SwitchListAction extends _ListDialogAction {
+  const _SwitchListAction(this.id);
+
+  final String id;
+}
+
+class _CreateListAction extends _ListDialogAction {
+  const _CreateListAction();
+}
+
+class _RenameListAction extends _ListDialogAction {
+  const _RenameListAction();
+}
+
+class _ListTitleButton extends StatelessWidget {
+  const _ListTitleButton({required this.controller, required this.onPressed});
+
+  final AppController controller;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: colors.onSurface,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: const Icon(Icons.list_alt_outlined),
+        label: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 220),
+          child: Text(
+            controller.activeListName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShoppingListOptionTile extends StatelessWidget {
+  const _ShoppingListOptionTile({
+    required this.profile,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ShoppingListProfile profile;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    return ListTile(
+      leading: Icon(
+        selected
+            ? Icons.radio_button_checked_outlined
+            : Icons.radio_button_unchecked_outlined,
+      ),
+      title: Text(profile.name),
+      subtitle: Text(
+        profile.hasLinkedStorage
+            ? profile.displayStorageName
+            : '${strings.localJson}: ${profile.localFileName}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
 class _LanguageOptionTile extends StatelessWidget {
   const _LanguageOptionTile({
     required this.selected,
@@ -292,8 +479,11 @@ class _SyncStatus extends StatelessWidget {
     final strings = AppStrings.of(context);
     final colors = Theme.of(context).colorScheme;
     final linkedName = controller.linkedDocumentName;
-    final title = linkedName == null ? strings.localOnly : strings.linkedFile;
-    final subtitle = linkedName ?? strings.syncHint;
+    final title = linkedName == null
+        ? strings.localOnly
+        : strings.linkedStorage;
+    final subtitle =
+        linkedName ?? '${strings.localJson}: ${controller.activeLocalFileName}';
 
     return Material(
       color: colors.surfaceContainerHighest,
@@ -384,7 +574,7 @@ class _ItemSection extends StatelessWidget {
               crossAxisCount: 3,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: 0.88,
+              childAspectRatio: 1,
             ),
             itemBuilder: (context, index) {
               final item = items[index];

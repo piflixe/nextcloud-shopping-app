@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../icons/item_icon_catalog.dart';
 import '../models/shopping_list.dart';
+import 'auto_fit_text.dart';
 
 class ShoppingItemTile extends StatelessWidget {
   const ShoppingItemTile({
@@ -46,53 +47,72 @@ class ShoppingItemTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  iconForShoppingItem(iconKey: item.icon, name: item.name),
-                  size: 30,
-                  color: foreground,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (item.amount.trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: colors.surface.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(99),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final hasAmount = item.amount.trim().isNotEmpty;
+              final shortestSide = constraints.biggest.shortestSide;
+              final iconSize = (shortestSide * (hasAmount ? 0.38 : 0.48))
+                  .clamp(hasAmount ? 40.0 : 44.0, hasAmount ? 48.0 : 58.0)
+                  .toDouble();
+              final textHeight = hasAmount ? 28.0 : 40.0;
+
+              return Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ShoppingItemIcon(
+                      iconKey: item.icon,
+                      name: item.name,
+                      size: iconSize,
+                      color: foreground,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      child: Text(
-                        item.amount,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    SizedBox(height: hasAmount ? 3 : 4),
+                    SizedBox(
+                      height: textHeight,
+                      width: double.infinity,
+                      child: AutoFitText(
+                        text: item.name,
+                        maxFontSize: 17,
+                        minFontSize: 10,
+                        style: Theme.of(context).textTheme.labelLarge!.copyWith(
                           color: foreground,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    if (hasAmount) ...[
+                      const SizedBox(height: 2),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 17),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.surface.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 1,
+                            ),
+                            child: Text(
+                              item.amount,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: foreground,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),

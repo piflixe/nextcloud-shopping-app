@@ -102,6 +102,14 @@ class ShoppingListData {
   final DateTime updatedAt;
   final List<ShoppingItem> items;
 
+  factory ShoppingListData.empty() {
+    return ShoppingListData(
+      schemaVersion: 1,
+      updatedAt: DateTime.now().toUtc(),
+      items: const [],
+    );
+  }
+
   factory ShoppingListData.initial() {
     final names = [
       ('Milk', 'milk', '1 l'),
