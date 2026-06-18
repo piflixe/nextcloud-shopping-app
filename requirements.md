@@ -1,25 +1,227 @@
-# general requirementes
-The application shall be installed on current android smartphones. A suitable framework may be chosen for the application, but it can also be a progressive web app. 
+# Requirements
 
-Multi-Language support is required via user settings.
+## General Requirements
 
-Dark theme and light theme are provided according to the user's OS settings.
+The application shall be installable on current Android smartphones.
 
-The app is made for current high resolution screens. Only upright orientation is needed.
+Flutter is the selected implementation framework. It is suitable for Android
+development, beginner-friendly enough for this project, and works well with the
+installed Android Studio and Flutter toolchain.
 
-The app is opensource under GPL license. Software packages with the same or similar licenses are preferred for the application to ensure the opensource character of the app. 
+The application shall be open source under the GPL license. Software packages
+with the same or similarly open licenses are preferred to preserve the open
+source character of the app.
 
-# functions
-The app provides a simple and easy to use shopping list that can be shared between different users. It's functionality is very similar to the [bring app](https://www.getbring.com/) but without additional recipies, advertisment etc.
+The app shall support multiple languages via user settings. German and English
+are currently required.
 
-The app connects to a nextcloud user account and can read a .json file (via an authorisation screen and a file picker - system / standard nextcloud functions can be used) containing the actual list. The list is saved locally and synchronised with the connected nextcloud to enable other users to use the same file for their app.
+The app shall provide dark and light themes according to the user's Android OS
+setting.
 
-The .json file contains the actual shopping list items as well as information on how to display the item (icon, order, amount, additional information).
+The app is intended for current high-resolution smartphone screens.
 
-The items are displayed on the screen with three in each row. The list starts with "open" items in a warm red colour. When items are clicked, they are moved town to the "last used" section and the colour changes to a green or turquoise. Tapping an item inthe "last used" sections moves it back to the open section.
+Only upright/portrait orientation is required.
 
-A long press on any item opens a dialog to change details of the icon such us icon, amount, additional information.
+The app should be usable on a physical Android phone through USB debugging and
+on an Android emulator during development.
 
-On the bottom of the screen is a field for inserting text to add new items. While typing, suggestions pop up in a search-as-you-type manner with contents from the "last used" section.
+## Core Purpose
 
-For each item, a simple pictogram is loaded from an opensource library. If no pictogram is found, pictograms are AI-generated in the same style as the previous ones. The user may also regenerate the icons and choose from different Options. The icons are stored in a folder next to the json file and symced in nextcloud. The corresponding icons are referenced by filename in the json.
+The app shall provide a simple shared shopping list experience similar to Bring,
+but without recipes, advertisements, tracking-heavy features, or unnecessary
+complexity.
+
+The app shall allow several users to share the same shopping list by sharing the
+underlying JSON file through an existing file-sharing service such as Nextcloud,
+Google Drive, Dropbox, or another Android document provider.
+
+The app shall use Android's standard Storage Access Framework/document picker
+instead of implementing provider-specific account login flows.
+
+## List Storage and Synchronization
+
+The app shall support multiple separate shopping lists.
+
+Each shopping list shall be represented by one separate JSON file.
+
+Every list shall have a user-editable list name.
+
+The JSON file name shall be derived from the list name, for example
+`Ottokar Shopping.json`.
+
+By default, lists shall be local-only lists stored in the app's private Android
+data directory.
+
+The app shall keep local list metadata such as available lists, active list, and
+optional linked storage information in a private app manifest.
+
+For every list, the user shall be able to choose a storage folder through the
+folder icon in the app bar.
+
+When a storage folder is selected, the app shall search that folder for the JSON
+file matching the active list name.
+
+If the matching JSON file already exists in the selected folder, the app shall
+load it and use it as the new content of the active list.
+
+If the matching JSON file does not exist in the selected folder, the app shall
+create it there using the current local content of the active list.
+
+After a list has been linked to a shared JSON file, changes shall be saved
+locally and written back to that linked JSON file.
+
+The app shall request and persist Android URI permissions where supported, so it
+can continue writing to linked shared files after the initial selection.
+
+The app shall handle Android document providers that cannot create a file
+directly inside a selected folder. In that case, it may open Android's create
+document flow with a suggested JSON file name and then resolve the created file
+inside the selected folder.
+
+The app shall tolerate Nextcloud-specific Storage Access Framework behavior,
+including tree URIs that cannot be queried directly.
+
+Renaming a linked list shall make the app use a JSON file matching the new list
+name. Old shared JSON files shall not be deleted automatically.
+
+## JSON List Format
+
+The shared JSON file shall contain the actual shopping list items and display
+information for those items.
+
+The JSON file shall include:
+
+- schema version;
+- update timestamp;
+- item ID;
+- item name;
+- amount;
+- additional note;
+- icon key or icon reference;
+- ordering information;
+- item state.
+
+The item state shall distinguish at least:
+
+- `open`;
+- `lastUsed`.
+
+The app should keep the shared JSON schema simple enough to be readable and
+repairable by hand if necessary.
+
+## Shopping List UI
+
+The main screen shall show the active list name in the app bar.
+
+Tapping the active list name shall open list management with at least:
+
+- switch list;
+- create new list;
+- rename active list.
+
+The folder icon in the app bar shall choose or update the shared storage folder
+for the active list.
+
+The settings icon shall provide app settings such as language selection.
+
+The screen shall show open items first.
+
+Open items shall use a warm red color.
+
+Items in the last-used section shall use a green or turquoise color.
+
+Items shall be displayed in a grid with three items per row.
+
+Item tiles shall be square so more items fit vertically.
+
+Tile pictograms shall be large enough to fill the tile clearly.
+
+Item text shall be large and readable.
+
+Item text shall dynamically shrink where necessary so longer item names fit
+inside the tile without overlapping other content.
+
+Tapping an open item shall move it to the last-used section.
+
+Tapping an item in the last-used section shall move it back to the open section.
+
+Long-pressing an item shall open a dialog for editing at least:
+
+- item name;
+- amount;
+- additional note;
+- icon.
+
+The bottom of the screen shall provide a text field for adding new items.
+
+While typing, suggestions shall appear in a search-as-you-type manner using
+items from the last-used section.
+
+Selecting a suggestion shall reactivate that item.
+
+## Icons and Pictograms
+
+For each item, the app shall assign a simple pictogram automatically where
+possible.
+
+The app shall include enough pictograms for common shopping-list items.
+
+Milk, juice, water, oil, and similar liquids should use suitable bottle or carton
+pictograms.
+
+Rice, flour, sugar, cereal, and similar dry goods should use suitable package,
+bag, grain, or pile pictograms.
+
+Fruit and vegetables should use specific pictograms where possible rather than a
+single generic plant pictogram. Examples include apple, banana, orange, lemon,
+pear, grapes, strawberry, watermelon, carrot, cucumber, pepper, potato, onion,
+broccoli, mushroom, garlic, corn, tomato, and lettuce.
+
+The icon assignment shall avoid overly broad substring matches that produce
+wrong icons, for example matching `Reis` as `Ei`.
+
+The user shall be able to choose a different icon in the edit dialog.
+
+If no catalog pictogram is found, the app shall provide generated fallback icon
+variants in a consistent style.
+
+Future versions should support true AI-generated icons, regeneration, and user
+selection from multiple generated options.
+
+Future versions should support storing custom generated icon files next to the
+shared JSON file and referencing them from the JSON.
+
+## Development and Toolchain Requirements
+
+The project shall be buildable with Flutter and Android Studio on Windows.
+
+The development setup should include:
+
+- Flutter SDK;
+- Dart SDK as provided by Flutter;
+- Android Studio;
+- Android SDK platform tools;
+- Git;
+- a Flutter/Dart IDE extension for VS Code or Android Studio.
+
+The app shall be testable with:
+
+- `flutter analyze`;
+- `flutter test`;
+- `flutter build apk --debug`;
+- installation through `adb install -r` on a connected Android phone.
+
+The app shall keep a documented toolchain setup in `toolchain_prerequisits.md`.
+
+## Non-Goals for the Current Prototype
+
+The app does not need provider-specific Nextcloud login screens.
+
+The app does not need recipes, meal planning, advertisements, or product
+recommendations.
+
+The app does not need landscape layout support.
+
+Conflict resolution between multiple simultaneous editors is not required for
+the current prototype. A simple last-write-wins sync behavior is acceptable for
+now.
