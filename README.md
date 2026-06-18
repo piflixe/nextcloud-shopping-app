@@ -8,6 +8,16 @@ Drive, Dropbox, or another Android document provider.
 The app is currently built and tested as an Android app. The main branch is
 `main`. The current developer release version is `1.0.1+2`.
 
+## Screenshots
+
+| Shopping list | Search |
+| --- | --- |
+| <img src="docs/screenshots/main-list.png" width="240" alt="Shopping list screen with open and last-used items"> | <img src="docs/screenshots/search.png" width="240" alt="Search screen filtered for milk"> |
+
+| Settings | Icon picker |
+| --- | --- |
+| <img src="docs/screenshots/settings.png" width="240" alt="Settings screen with storage, auto-sync, and language options"> | <img src="docs/screenshots/icon-picker.png" width="240" alt="Item edit dialog with searchable icon picker"> |
+
 ## Current Features
 
 - Flutter Android app with portrait-only orientation.
