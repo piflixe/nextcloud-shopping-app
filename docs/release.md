@@ -7,7 +7,7 @@ This project uses a lightweight GitHub-style developer release process.
 The app version is defined in `pubspec.yaml`:
 
 ```yaml
-version: 1.0.1+2
+version: 1.1.0+3
 ```
 
 The part before `+` is the Android `versionName`. The number after `+` is the
@@ -32,7 +32,7 @@ build/app/outputs/flutter-apk/app-release.apk
 For a named local artifact:
 
 ```powershell
-Copy-Item build\app\outputs\flutter-apk\app-release.apk .\dist\nextcloud-shopping-app-v1.0.1.apk
+Copy-Item build\app\outputs\flutter-apk\app-release.apk .\dist\nextcloud-shopping-app-v1.1.0.apk
 ```
 
 `dist/` is intentionally ignored by Git. Release APKs should be attached to
@@ -46,8 +46,8 @@ GitHub Releases instead of committed to the repository.
 4. Create and push a version tag:
 
 ```powershell
-git tag v1.0.1
-git push origin main v1.0.1
+git tag v1.1.0
+git push origin main v1.1.0
 ```
 
 The GitHub Actions workflow builds the release APK and attaches it to the GitHub

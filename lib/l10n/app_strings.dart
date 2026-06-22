@@ -113,7 +113,14 @@ class AppStrings {
 
   String get amount => _isGerman ? 'Menge' : 'Amount';
 
-  String get note => _isGerman ? 'Zusatzinfo' : 'Additional info';
+  String get note => store;
+
+  String get store => _isGerman ? 'Geschäft' : 'Store';
+
+  String get storeHint =>
+      _isGerman ? 'Geschäft auswählen oder eingeben' : 'Choose or enter store';
+
+  String get noStore => _isGerman ? 'Ohne Geschäft' : 'No store';
 
   String get icon => _isGerman ? 'Icon' : 'Icon';
 
@@ -152,6 +159,10 @@ class AppStrings {
 
   String get noSearchResults =>
       _isGerman ? 'Keine Treffer' : 'No matching items';
+
+  String get dragToReorder => _isGerman
+      ? 'Ziehen zum Sortieren oder in ein anderes Geschäft'
+      : 'Drag to reorder or move to another store';
 }
 
 class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {

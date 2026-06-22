@@ -16,17 +16,20 @@ class EditItemDialogResult {
 Future<EditItemDialogResult?> showEditItemDialog({
   required BuildContext context,
   required ShoppingItem item,
+  List<String> storeSuggestions = const [],
 }) {
   return showDialog<EditItemDialogResult>(
     context: context,
-    builder: (context) => _EditItemDialog(item: item),
+    builder: (context) =>
+        _EditItemDialog(item: item, storeSuggestions: storeSuggestions),
   );
 }
 
 class _EditItemDialog extends StatefulWidget {
-  const _EditItemDialog({required this.item});
+  const _EditItemDialog({required this.item, required this.storeSuggestions});
 
   final ShoppingItem item;
+  final List<String> storeSuggestions;
 
   @override
   State<_EditItemDialog> createState() => _EditItemDialogState();
@@ -35,8 +38,9 @@ class _EditItemDialog extends StatefulWidget {
 class _EditItemDialogState extends State<_EditItemDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _amountController;
-  late final TextEditingController _noteController;
+  late final TextEditingController _storeController;
   late final TextEditingController _iconSearchController;
+  late final FocusNode _storeFocusNode;
   late String _iconKey;
 
   @override
@@ -45,7 +49,8 @@ class _EditItemDialogState extends State<_EditItemDialog> {
     _nameController = TextEditingController(text: widget.item.name);
     _nameController.addListener(_refreshGeneratedPreview);
     _amountController = TextEditingController(text: widget.item.amount);
-    _noteController = TextEditingController(text: widget.item.note);
+    _storeController = TextEditingController(text: widget.item.note);
+    _storeFocusNode = FocusNode();
     _iconSearchController = TextEditingController()
       ..addListener(_refreshGeneratedPreview);
     _iconKey = widget.item.icon.trim().isEmpty
@@ -58,7 +63,8 @@ class _EditItemDialogState extends State<_EditItemDialog> {
     _nameController.removeListener(_refreshGeneratedPreview);
     _nameController.dispose();
     _amountController.dispose();
-    _noteController.dispose();
+    _storeController.dispose();
+    _storeFocusNode.dispose();
     _iconSearchController
       ..removeListener(_refreshGeneratedPreview)
       ..dispose();
@@ -90,11 +96,10 @@ class _EditItemDialogState extends State<_EditItemDialog> {
                 decoration: InputDecoration(labelText: strings.amount),
               ),
               const SizedBox(height: 10),
-              TextField(
-                controller: _noteController,
-                decoration: InputDecoration(labelText: strings.note),
-                minLines: 1,
-                maxLines: 3,
+              _StoreAutocompleteField(
+                controller: _storeController,
+                focusNode: _storeFocusNode,
+                suggestions: widget.storeSuggestions,
               ),
               const SizedBox(height: 18),
               Text(strings.icon, style: Theme.of(context).textTheme.labelLarge),
@@ -120,7 +125,12 @@ class _EditItemDialogState extends State<_EditItemDialog> {
                 children: [
                   for (final choice in _filteredIconChoices())
                     Tooltip(
-                      message: choice.key,
+                      message: localizedIconLabel(
+                        choice.key,
+                        languageCode: Localizations.localeOf(
+                          context,
+                        ).languageCode,
+                      ),
                       child: InkResponse(
                         onTap: () => setState(() => _iconKey = choice.key),
                         radius: 24,
@@ -213,16 +223,13 @@ class _EditItemDialogState extends State<_EditItemDialog> {
   }
 
   List<ItemIconChoice> _filteredIconChoices() {
-    final query = normalizeIconSearchText(_iconSearchController.text);
-    if (query.isEmpty) {
+    final query = _iconSearchController.text;
+    if (normalizeIconSearchText(query).isEmpty) {
       return itemIconChoices;
     }
-    final terms = query.split(RegExp(r'\s+'));
+    final languageCode = Localizations.localeOf(context).languageCode;
     return itemIconChoices.where((choice) {
-      final haystack = normalizeIconSearchText(
-        '${choice.key} ${choice.keywords.join(' ')}',
-      );
-      return terms.every(haystack.contains);
+      return iconChoiceMatchesQuery(choice, query, languageCode: languageCode);
     }).toList();
   }
 
@@ -236,7 +243,7 @@ class _EditItemDialogState extends State<_EditItemDialog> {
         widget.item.copyWith(
           name: name,
           amount: _amountController.text.trim(),
-          note: _noteController.text.trim(),
+          note: _storeController.text.trim(),
           icon: _iconKey,
         ),
       ),
@@ -247,5 +254,77 @@ class _EditItemDialogState extends State<_EditItemDialog> {
     if (mounted) {
       setState(() {});
     }
+  }
+}
+
+class _StoreAutocompleteField extends StatelessWidget {
+  const _StoreAutocompleteField({
+    required this.controller,
+    required this.focusNode,
+    required this.suggestions,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final List<String> suggestions;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    return RawAutocomplete<String>(
+      textEditingController: controller,
+      focusNode: focusNode,
+      displayStringForOption: (option) => option,
+      optionsBuilder: (value) {
+        final query = value.text.trim().toLowerCase();
+        if (suggestions.isEmpty) {
+          return const <String>[];
+        }
+        if (query.isEmpty) {
+          return suggestions;
+        }
+        return suggestions.where(
+          (store) => store.toLowerCase().contains(query),
+        );
+      },
+      fieldViewBuilder:
+          (context, textController, fieldFocusNode, onFieldSubmitted) {
+            return TextField(
+              controller: textController,
+              focusNode: fieldFocusNode,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: strings.store,
+                hintText: strings.storeHint,
+              ),
+            );
+          },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 180, maxWidth: 320),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.storefront_outlined),
+                    title: Text(option),
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

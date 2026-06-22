@@ -60,8 +60,36 @@ void main() {
     expect(suggestIconKey('Reis'), 'rice');
     expect(suggestIconKey('Mehl'), 'flour');
     expect(suggestIconKey('Banane'), 'banana');
+    expect(suggestIconKey('\u00c4pfel'), 'apple');
+    expect(suggestIconKey('Tomaten'), 'tomato');
+    expect(suggestIconKey('M\u00f6hren'), 'carrot');
+    expect(suggestIconKey('Frischk\u00e4se'), 'cream_cheese');
+    expect(suggestIconKey('Salzstangen'), 'pretzel_sticks');
+    expect(suggestIconKey('Club-Mate'), 'mate');
+    expect(suggestIconKey('Zahnpasta'), 'toothpaste');
+    expect(suggestIconKey('Zahnb\u00fcrsten'), 'toothbrush');
     expect(suggestIconKey('Paprika'), 'pepper');
     expect(suggestIconKey('Very specific custom item'), 'generated:0');
+  });
+
+  test('matches localized icon picker search terms', () {
+    final lemon = itemIconChoices.firstWhere((choice) => choice.key == 'lemon');
+    final creamCheese = itemIconChoices.firstWhere(
+      (choice) => choice.key == 'cream_cheese',
+    );
+
+    expect(
+      iconChoiceMatchesQuery(lemon, 'Zitronen', languageCode: 'de'),
+      isTrue,
+    );
+    expect(
+      iconChoiceMatchesQuery(
+        creamCheese,
+        'Frischk\u00e4se',
+        languageCode: 'de',
+      ),
+      isTrue,
+    );
   });
 
   test('serializes shopping list profiles for multiple lists', () {

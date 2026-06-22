@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.1.0 - 2026-06-22
+
+Feature release focused on better item organization, icon matching, and manual
+ordering.
+
+### Added
+
+- Store field in the item edit dialog, replacing the previous generic
+  additional-info label.
+- Store autocomplete based on stores already used in the active list.
+- Store-based list sections for open and last-used items.
+- Drag handle on item tiles for quick manual reordering without interfering
+  with long-press editing.
+- Automatic store reassignment when an item is dragged into another store
+  section.
+- Supermarket-style default ordering for newly added open items.
+- Localized icon picker search terms for German and English.
+- More flexible icon assignment for common German inflections and plurals, for
+  example `Äpfel`, `Tomaten`, `Möhren`, and `Zahnbürsten`.
+- New drawn pictograms for cola, mate, feta, mozzarella, cream cheese,
+  pretzel sticks, toothpaste, and toothbrushes.
+
+### Changed
+
+- Improved the lemon pictogram so it is easier to recognize.
+- Increased tile pictogram size while keeping tile and text sizes unchanged.
+- Switched icon matching to a scored lookup so precise matches win over broad
+  substring matches.
+- The shared JSON key `note` is now used by the app as the store field for
+  compatibility with existing lists.
+
 ## 1.0.1 - 2026-06-19
 
 Developer APK release for shared JSON shopping lists.

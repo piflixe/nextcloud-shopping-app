@@ -6,7 +6,7 @@ through Android's system document picker, for example by Nextcloud, Google
 Drive, Dropbox, or another Android document provider.
 
 The app is currently built and tested as an Android app. The main branch is
-`main`. The current developer release version is `1.0.1+2`.
+`main`. The current developer release version is `1.1.0+3`.
 
 ## Screenshots
 
@@ -43,19 +43,28 @@ The app is currently built and tested as an Android app. The main branch is
 - Nextcloud-compatible fallback for providers that do not support direct file
   creation through `DocumentsContract.createDocument`.
 - Open and last-used item sections.
+- Items are grouped by store within each section.
 - Three square item tiles per row.
 - Warm red tiles for open items and green/turquoise tiles for last-used items.
 - Tap an item to move it between open and last-used.
-- Long-press an item to edit name, amount, note, and icon.
+- Drag an item by its handle to reorder it or move it into another store
+  section.
+- Long-press an item to edit name, amount, store, and icon.
+- Store autocomplete in the item editor based on stores already used in the
+  active list.
 - Searchable manual icon picker in the item edit dialog.
 - Bottom input field for adding items.
 - Search-as-you-type suggestions from the last-used section.
 - Full-text list search through the search icon in the app bar.
-- Expanded built-in pictogram catalog with keyword-based icon assignment.
+- Expanded built-in pictogram catalog with flexible keyword-based icon
+  assignment for plurals and common German inflections.
+- Localized icon picker search for German and English.
+- Supermarket-style default ordering for newly added open items.
 - Larger tile pictograms, larger tile text, wrapping, and dynamic text fitting
   for longer item names.
 - Custom drawn vector pictograms for common groceries such as milk, juice, rice,
-  flour, bread, fruit, vegetables, snacks, jars, cans, and dry goods.
+  flour, bread, fruit, vegetables, snacks, jars, cans, dry goods, soft drinks,
+  dairy packages, and dental care items.
 - Deterministic generated fallback icons with selectable variants for unmatched
   items.
 
@@ -76,7 +85,13 @@ The icon next to the list name shows the sync state:
 - cloud off/error color: sync error.
 
 Use the search icon in the app bar to open full-text search across item name,
-amount, note, and icon key.
+amount, store, and icon key.
+
+Open and last-used items are grouped by store. New open items are placed in a
+simple supermarket-style default order by product category. Use the small drag
+handle on a tile to move it within the list; dropping an item into another store
+section updates its store value automatically. Long-press still opens item
+editing.
 
 Use the settings icon to open the dedicated settings screen. The settings screen
 contains language settings, storage status, folder selection, manual sync,
@@ -141,7 +156,7 @@ The app writes each list in this shape:
       "id": "milk",
       "name": "Milk",
       "amount": "1 l",
-      "note": "Organic",
+      "note": "Supermarket",
       "icon": "milk",
       "order": 0,
       "state": "open"
@@ -150,7 +165,8 @@ The app writes each list in this shape:
 }
 ```
 
-`state` is either `open` or `lastUsed`.
+`state` is either `open` or `lastUsed`. The `note` field is used by the current
+app version as the store name so existing shared JSON files remain compatible.
 
 The app also keeps a private local manifest with list names, the active list,
 local file names, and optional linked-folder metadata. That manifest is not part
@@ -217,7 +233,7 @@ Install the release APK directly:
 Release notes are maintained in [CHANGELOG.md](CHANGELOG.md). The release
 process is documented in [docs/release.md](docs/release.md).
 
-Tagged versions matching `v*`, for example `v1.0.1`, trigger the Android release
+Tagged versions matching `v*`, for example `v1.1.0`, trigger the Android release
 workflow in GitHub Actions. The workflow validates the app, builds
 `app-release.apk`, and attaches a named APK to the GitHub Release.
 

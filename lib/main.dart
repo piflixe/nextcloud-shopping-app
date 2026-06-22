@@ -149,16 +149,20 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
                       title: strings.openItems,
                       emptyText: strings.noOpenItems,
                       items: controller.list.openItems,
+                      state: ShoppingItemState.open,
                       onTap: controller.toggleItem,
                       onLongPress: _editItem,
+                      onMove: controller.moveItem,
                     ),
                     const SizedBox(height: 22),
                     _ItemSection(
                       title: strings.lastUsed,
                       emptyText: strings.noLastUsedItems,
                       items: controller.list.lastUsedItems,
+                      state: ShoppingItemState.lastUsed,
                       onTap: controller.toggleItem,
                       onLongPress: _editItem,
+                      onMove: controller.moveItem,
                     ),
                   ],
                 ),
@@ -200,7 +204,11 @@ class _ShoppingHomePageState extends State<ShoppingHomePage> {
   }
 
   Future<void> _editItem(ShoppingItem item) async {
-    final result = await showEditItemDialog(context: context, item: item);
+    final result = await showEditItemDialog(
+      context: context,
+      item: item,
+      storeSuggestions: controller.storeSuggestions,
+    );
     if (result == null) {
       return;
     }
@@ -536,6 +544,7 @@ class _ShoppingSearchPageState extends State<ShoppingSearchPage> {
                   title: strings.openItems,
                   emptyText: strings.noOpenItems,
                   items: openItems,
+                  state: ShoppingItemState.open,
                   onTap: controller.toggleItem,
                   onLongPress: _editItem,
                 ),
@@ -544,6 +553,7 @@ class _ShoppingSearchPageState extends State<ShoppingSearchPage> {
                   title: strings.lastUsed,
                   emptyText: strings.noLastUsedItems,
                   items: lastUsedItems,
+                  state: ShoppingItemState.lastUsed,
                   onTap: controller.toggleItem,
                   onLongPress: _editItem,
                 ),
@@ -556,7 +566,11 @@ class _ShoppingSearchPageState extends State<ShoppingSearchPage> {
   }
 
   Future<void> _editItem(ShoppingItem item) async {
-    final result = await showEditItemDialog(context: context, item: item);
+    final result = await showEditItemDialog(
+      context: context,
+      item: item,
+      storeSuggestions: controller.storeSuggestions,
+    );
     if (result == null) {
       return;
     }
@@ -724,23 +738,37 @@ class _StorageStatusTile extends StatelessWidget {
   }
 }
 
+typedef MoveItemCallback =
+    Future<void> Function({
+      required ShoppingItem item,
+      required ShoppingItemState destinationState,
+      required String destinationStore,
+      ShoppingItem? beforeItem,
+    });
+
 class _ItemSection extends StatelessWidget {
   const _ItemSection({
     required this.title,
     required this.emptyText,
     required this.items,
+    required this.state,
     required this.onTap,
     required this.onLongPress,
+    this.onMove,
   });
 
   final String title;
   final String emptyText;
   final List<ShoppingItem> items;
+  final ShoppingItemState state;
   final ValueChanged<ShoppingItem> onTap;
   final ValueChanged<ShoppingItem> onLongPress;
+  final MoveItemCallback? onMove;
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final groups = _groupItemsByStore(items);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -763,27 +791,253 @@ class _ItemSection extends StatelessWidget {
               ),
             ),
           )
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 1,
+        else ...[
+          for (
+            var groupIndex = 0;
+            groupIndex < groups.length;
+            groupIndex++
+          ) ...[
+            if (groupIndex > 0) const SizedBox(height: 16),
+            _StoreGroupHeader(
+              store: groups[groupIndex].store,
+              label: groups[groupIndex].label(strings),
+              state: state,
+              onMove: onMove,
             ),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return ShoppingItemTile(
-                item: item,
-                onTap: () => onTap(item),
-                onLongPress: () => onLongPress(item),
-              );
-            },
-          ),
+            const SizedBox(height: 8),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: groups[groupIndex].items.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1,
+              ),
+              itemBuilder: (context, index) {
+                final item = groups[groupIndex].items[index];
+                return _DraggableShoppingTile(
+                  item: item,
+                  state: state,
+                  store: groups[groupIndex].store,
+                  onTap: () => onTap(item),
+                  onLongPress: () => onLongPress(item),
+                  onMove: onMove,
+                );
+              },
+            ),
+          ],
+        ],
       ],
+    );
+  }
+
+  List<_StoreItemGroup> _groupItemsByStore(List<ShoppingItem> items) {
+    final grouped = <String, List<ShoppingItem>>{};
+    for (final item in items) {
+      final store = item.note.trim();
+      grouped.putIfAbsent(store, () => <ShoppingItem>[]).add(item);
+    }
+    return [
+      for (final entry in grouped.entries)
+        _StoreItemGroup(store: entry.key, items: entry.value),
+    ];
+  }
+}
+
+class _StoreItemGroup {
+  const _StoreItemGroup({required this.store, required this.items});
+
+  final String store;
+  final List<ShoppingItem> items;
+
+  String label(AppStrings strings) => store.isEmpty ? strings.noStore : store;
+}
+
+class _StoreGroupHeader extends StatelessWidget {
+  const _StoreGroupHeader({
+    required this.store,
+    required this.label,
+    required this.state,
+    required this.onMove,
+  });
+
+  final String store;
+  final String label;
+  final ShoppingItemState state;
+  final MoveItemCallback? onMove;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final title = Text(
+      label,
+      style: Theme.of(
+        context,
+      ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+    );
+    if (onMove == null) {
+      return title;
+    }
+
+    return DragTarget<ShoppingItem>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (details) {
+        onMove!(
+          item: details.data,
+          destinationState: state,
+          destinationStore: store,
+        );
+      },
+      builder: (context, candidates, _) {
+        final hovering = candidates.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: hovering
+                ? colors.primaryContainer.withValues(alpha: 0.55)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: hovering ? colors.primary : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.storefront_outlined,
+                size: 16,
+                color: colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Flexible(child: title),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DraggableShoppingTile extends StatelessWidget {
+  const _DraggableShoppingTile({
+    required this.item,
+    required this.state,
+    required this.store,
+    required this.onTap,
+    required this.onLongPress,
+    required this.onMove,
+  });
+
+  final ShoppingItem item;
+  final ShoppingItemState state;
+  final String store;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final MoveItemCallback? onMove;
+
+  @override
+  Widget build(BuildContext context) {
+    final tile = ShoppingItemTile(
+      item: item,
+      onTap: onTap,
+      onLongPress: onLongPress,
+    );
+    if (onMove == null) {
+      return tile;
+    }
+
+    final colors = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return DragTarget<ShoppingItem>(
+          onWillAcceptWithDetails: (details) => details.data.id != item.id,
+          onAcceptWithDetails: (details) {
+            onMove!(
+              item: details.data,
+              destinationState: state,
+              destinationStore: store,
+              beforeItem: item,
+            );
+          },
+          builder: (context, candidates, _) {
+            final hovering = candidates.isNotEmpty;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: hovering ? colors.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: tile,
+                ),
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Draggable<ShoppingItem>(
+                    data: item,
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: SizedBox(
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                        child: Opacity(
+                          opacity: 0.92,
+                          child: ShoppingItemTile(
+                            item: item,
+                            onTap: () {},
+                            onLongPress: () {},
+                          ),
+                        ),
+                      ),
+                    ),
+                    childWhenDragging: Opacity(
+                      opacity: 0.35,
+                      child: _DragHandle(colors: colors),
+                    ),
+                    child: _DragHandle(colors: colors),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DragHandle extends StatelessWidget {
+  const _DragHandle({required this.colors});
+
+  final ColorScheme colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: AppStrings.of(context).dragToReorder,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surface.withValues(alpha: 0.78),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Icon(
+            Icons.drag_indicator_outlined,
+            size: 17,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ),
     );
   }
 }

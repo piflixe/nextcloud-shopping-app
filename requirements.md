@@ -55,8 +55,8 @@ data directory.
 The app shall keep local list metadata such as available lists, active list, and
 optional linked storage information in a private app manifest.
 
-For every list, the user shall be able to choose a storage folder through the
-folder icon in the app bar.
+For every list, the user shall be able to choose a storage folder from the
+settings screen.
 
 When a storage folder is selected, the app shall search that folder for the JSON
 file matching the active list name.
@@ -116,7 +116,8 @@ The JSON file shall include:
 - item ID;
 - item name;
 - amount;
-- additional note;
+- store name, persisted in the `note` field for compatibility with existing
+  shared JSON files;
 - icon key or icon reference;
 - ordering information;
 - item state.
@@ -165,6 +166,12 @@ The settings screen shall provide at least:
 
 The screen shall show open items first.
 
+Within the open and last-used sections, items shall be grouped by the store
+assigned to the item.
+
+Items without a store shall be shown in a dedicated unnamed/default store
+section.
+
 Open items shall use a warm red color.
 
 Items in the last-used section shall use a green or turquoise color.
@@ -190,8 +197,23 @@ Long-pressing an item shall open a dialog for editing at least:
 
 - item name;
 - amount;
-- additional note;
+- store;
 - icon.
+
+The store field shall offer autocomplete or quick selection from stores already
+used in the active list.
+
+The user shall be able to move individual item tiles on the screen to change
+the list order.
+
+Reordering shall not rely on long-press because long-press is reserved for item
+editing. A visible drag handle or similarly clear interaction shall be used.
+
+Dropping an item into a different store section shall automatically update that
+item's store field to the destination store.
+
+Newly added open items should receive a sensible default order based on a common
+supermarket route or product category order.
 
 The bottom of the screen shall provide a text field for adding new items.
 
@@ -202,8 +224,8 @@ Selecting a suggestion shall reactivate that item.
 
 The list shall be searchable/filterable via full-text search.
 
-The full-text search should search at least item name, amount, additional note,
-and icon key.
+The full-text search should search at least item name, amount, store, and icon
+key.
 
 ## Icons and Pictograms
 
@@ -226,9 +248,20 @@ broccoli, mushroom, garlic, corn, tomato, and lettuce.
 The icon assignment shall avoid overly broad substring matches that produce
 wrong icons, for example matching `Reis` as `Ei`.
 
+The icon assignment shall handle common German inflections, plural forms, and
+umlauts so examples such as `Äpfel`, `Tomaten`, `Möhren`, and `Zahnbürsten`
+match their intended pictograms.
+
 The user shall be able to choose a different icon in the edit dialog.
 
 The manual icon picker in the edit dialog shall be searchable.
+
+The manual icon picker search shall respect the selected app language where
+possible, including German search terms for German UI settings.
+
+The pictogram catalog shall include distinguishable icons for at least lemon,
+pretzel sticks, feta, mozzarella, cream cheese, cola, mate, toothpaste, and
+toothbrush.
 
 If no catalog pictogram is found, the app shall provide generated fallback icon
 variants in a consistent style.

@@ -36,6 +36,18 @@ const List<ItemIconChoice> itemIconChoices = [
     'apfelsaft',
     'multivitamin',
   ]),
+  ItemIconChoice('cola', Icons.local_drink_outlined, [
+    'cola',
+    'coke',
+    'limonade',
+    'softdrink',
+  ]),
+  ItemIconChoice('mate', Icons.local_drink_outlined, [
+    'mate',
+    'clubmate',
+    'club mate',
+    'eistee',
+  ]),
   ItemIconChoice('water_bottle', Icons.water_drop_outlined, [
     'water',
     'wasser',
@@ -203,7 +215,32 @@ const List<ItemIconChoice> itemIconChoices = [
     'keks',
     'biscuit',
   ]),
-  ItemIconChoice('cheese', Icons.lunch_dining_outlined, ['cheese', 'kaese']),
+  ItemIconChoice('feta', Icons.inventory_2_outlined, [
+    'feta',
+    'hirtenkaese',
+    'hirtenkase',
+    'schafskaese',
+    'schafskase',
+  ]),
+  ItemIconChoice('mozzarella', Icons.inventory_2_outlined, [
+    'mozzarella',
+    'burrata',
+  ]),
+  ItemIconChoice('cream_cheese', Icons.inventory_2_outlined, [
+    'cream cheese',
+    'frischkaese',
+    'frischkase',
+    'philadelphia',
+    'streichkaese',
+    'streichkase',
+  ]),
+  ItemIconChoice('cheese', Icons.lunch_dining_outlined, [
+    'cheese',
+    'kaese',
+    'kase',
+    'gouda',
+    'emmentaler',
+  ]),
   ItemIconChoice('butter', Icons.inventory_2_outlined, ['butter']),
   ItemIconChoice('egg', Icons.egg_outlined, ['egg', 'eggs', 'ei', 'eier']),
   ItemIconChoice('meat', Icons.set_meal_outlined, [
@@ -273,6 +310,13 @@ const List<ItemIconChoice> itemIconChoices = [
     'schokolade',
     'schoko',
   ]),
+  ItemIconChoice('pretzel_sticks', Icons.bakery_dining_outlined, [
+    'pretzel sticks',
+    'salzstangen',
+    'salzstange',
+    'brezelstangen',
+    'laugenstangen',
+  ]),
   ItemIconChoice('chips', Icons.fastfood_outlined, [
     'chips',
     'nachos',
@@ -331,6 +375,17 @@ const List<ItemIconChoice> itemIconChoices = [
     'seife',
     'shampoo',
     'duschgel',
+  ]),
+  ItemIconChoice('toothpaste', Icons.clean_hands_outlined, [
+    'toothpaste',
+    'zahnpasta',
+    'zahncreme',
+  ]),
+  ItemIconChoice('toothbrush', Icons.cleaning_services_outlined, [
+    'toothbrush',
+    'zahnbuerste',
+    'zahnburste',
+    'zahnbürste',
   ]),
   ItemIconChoice('sanitizer', Icons.sanitizer_outlined, [
     'desinfektion',
@@ -437,21 +492,81 @@ IconData materialIconForKey(String iconKey) {
 }
 
 String suggestIconKey(String name) {
-  final normalized = normalizeIconSearchText(name);
-  final words = normalized.split(RegExp(r'\s+')).toSet();
+  var bestKey = '${generatedIconPrefix}0';
+  var bestScore = 0;
   for (final choice in itemIconChoices) {
     if (choice.key == 'default') {
       continue;
     }
-    if (choice.keywords.any(
-      (keyword) => keyword.length <= 2
-          ? words.contains(keyword)
-          : normalized.contains(keyword),
-    )) {
-      return choice.key;
+    final score = _iconChoiceMatchScore(choice, name);
+    if (score > bestScore) {
+      bestKey = choice.key;
+      bestScore = score;
     }
   }
-  return '${generatedIconPrefix}0';
+  return bestScore == 0 ? '${generatedIconPrefix}0' : bestKey;
+}
+
+bool iconChoiceMatchesQuery(
+  ItemIconChoice choice,
+  String query, {
+  String? languageCode,
+}) {
+  return _iconChoiceMatchScore(choice, query, languageCode: languageCode) > 0;
+}
+
+int _iconChoiceMatchScore(
+  ItemIconChoice choice,
+  String query, {
+  String? languageCode,
+}) {
+  final queryTerms = _iconSearchTerms(query);
+  if (queryTerms.isEmpty) {
+    return 1;
+  }
+
+  final choiceTerms = _iconSearchTerms(
+    localizedIconSearchText(choice, languageCode: languageCode),
+  );
+
+  var bestScore = 0;
+  for (final queryTerm in queryTerms) {
+    if (choiceTerms.contains(queryTerm)) {
+      bestScore = math.max(bestScore, 100);
+    }
+    if (queryTerm.length <= 2) {
+      continue;
+    }
+    for (final choiceTerm in choiceTerms) {
+      if (choiceTerm.length <= 2) {
+        continue;
+      }
+      if (queryTerm.contains(choiceTerm) || choiceTerm.contains(queryTerm)) {
+        bestScore = math.max(bestScore, 50);
+      }
+    }
+  }
+  return bestScore;
+}
+
+String localizedIconSearchText(ItemIconChoice choice, {String? languageCode}) {
+  return [
+    choice.key,
+    localizedIconLabel(choice.key, languageCode: languageCode),
+    ...choice.keywords,
+    ...?_localizedIconKeywords[choice.key],
+  ].join(' ');
+}
+
+String localizedIconLabel(String iconKey, {String? languageCode}) {
+  if (languageCode == 'de') {
+    return _germanIconNames[iconKey] ?? _humanizeIconKey(iconKey);
+  }
+  return _englishIconNames[iconKey] ?? _humanizeIconKey(iconKey);
+}
+
+int supermarketOrderForIcon(String iconKey) {
+  return _supermarketOrderByIcon[iconKey] ?? 90;
 }
 
 String normalizeIconSearchText(String value) {
@@ -464,6 +579,299 @@ String normalizeIconSearchText(String value) {
       .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
       .trim();
 }
+
+Set<String> _iconSearchTerms(String value) {
+  final normalized = normalizeIconSearchText(value);
+  if (normalized.isEmpty) {
+    return const <String>{};
+  }
+
+  final terms = <String>{};
+  final tokens = normalized
+      .split(RegExp(r'\s+'))
+      .where((token) => token.isNotEmpty)
+      .toList();
+  for (final token in tokens) {
+    _addTermVariants(terms, token);
+  }
+  if (tokens.length > 1) {
+    _addTermVariants(terms, tokens.join());
+  }
+  return terms;
+}
+
+void _addTermVariants(Set<String> terms, String term) {
+  if (term.isEmpty) {
+    return;
+  }
+  final candidates = <String>{term, _compactGermanUmlautVariant(term)};
+  for (final candidate in candidates.toList()) {
+    for (final suffix in const [
+      'innen',
+      'chen',
+      'lein',
+      'ern',
+      'en',
+      'er',
+      'es',
+      'e',
+      'n',
+      's',
+    ]) {
+      if (candidate.length > suffix.length + 3 && candidate.endsWith(suffix)) {
+        candidates.add(
+          candidate.substring(0, candidate.length - suffix.length),
+        );
+      }
+    }
+  }
+  for (final candidate in candidates.toList()) {
+    terms.add(candidate);
+    terms.add(_compactGermanUmlautVariant(candidate));
+  }
+}
+
+String _compactGermanUmlautVariant(String value) {
+  return value
+      .replaceAll('ae', 'a')
+      .replaceAll('oe', 'o')
+      .replaceAll('ue', 'u');
+}
+
+String _humanizeIconKey(String key) {
+  return key.replaceAll('_', ' ');
+}
+
+const Map<String, String> _englishIconNames = {
+  'water_bottle': 'water bottle',
+  'cream_cheese': 'cream cheese',
+  'pretzel_sticks': 'pretzel sticks',
+};
+
+const Map<String, String> _germanIconNames = {
+  'basket': 'Einkaufskorb',
+  'bag': 'Einkaufstasche',
+  'store': 'Laden',
+  'offer': 'Angebot',
+  'milk': 'Milch',
+  'juice': 'Saft',
+  'cola': 'Cola',
+  'mate': 'Mate',
+  'water_bottle': 'Wasserflasche',
+  'yogurt': 'Joghurt',
+  'cream': 'Sahne',
+  'apple': 'Apfel',
+  'banana': 'Banane',
+  'orange': 'Orange',
+  'lemon': 'Zitrone',
+  'pear': 'Birne',
+  'grapes': 'Trauben',
+  'strawberry': 'Erdbeere',
+  'watermelon': 'Wassermelone',
+  'pineapple': 'Ananas',
+  'kiwi': 'Kiwi',
+  'peach': 'Pfirsich',
+  'cherry': 'Kirschen',
+  'avocado': 'Avocado',
+  'vegetable': 'Gemuese',
+  'lettuce': 'Salat',
+  'carrot': 'Karotte',
+  'cucumber': 'Gurke',
+  'pepper': 'Paprika',
+  'potato': 'Kartoffel',
+  'onion': 'Zwiebel',
+  'broccoli': 'Brokkoli',
+  'mushroom': 'Pilze',
+  'garlic': 'Knoblauch',
+  'corn': 'Mais',
+  'tomato': 'Tomate',
+  'cabbage': 'Kohl',
+  'eggplant': 'Aubergine',
+  'pumpkin': 'Kuerbis',
+  'peas': 'Erbsen',
+  'beans': 'Bohnen',
+  'radish': 'Radieschen',
+  'asparagus': 'Spargel',
+  'herbs': 'Kraeuter',
+  'bread': 'Brot',
+  'cake': 'Kuchen',
+  'cookie': 'Keks',
+  'feta': 'Feta',
+  'mozzarella': 'Mozzarella',
+  'cream_cheese': 'Frischkaese',
+  'cheese': 'Kaese',
+  'butter': 'Butter',
+  'egg': 'Ei',
+  'meat': 'Fleisch',
+  'fish': 'Fisch',
+  'pasta': 'Nudeln',
+  'rice': 'Reis',
+  'flour': 'Mehl',
+  'sugar': 'Zucker',
+  'salt': 'Salz',
+  'oil': 'Oel',
+  'cereal': 'Muesli',
+  'nuts': 'Nuesse',
+  'honey': 'Honig',
+  'jam': 'Marmelade',
+  'chocolate': 'Schokolade',
+  'pretzel_sticks': 'Salzstangen',
+  'chips': 'Chips',
+  'canned': 'Konserve',
+  'tofu': 'Tofu',
+  'soup': 'Suppe',
+  'restaurant': 'Essen',
+  'fastfood': 'Snack',
+  'frozen': 'Tiefkuehlware',
+  'icecream': 'Eis',
+  'coffee': 'Kaffee',
+  'tea': 'Tee',
+  'water': 'Getraenk',
+  'beer': 'Bier',
+  'wine': 'Wein',
+  'kitchen': 'Kueche',
+  'cleaning': 'Putzen',
+  'laundry': 'Waesche',
+  'soap': 'Seife',
+  'toothpaste': 'Zahnpasta',
+  'toothbrush': 'Zahnbuerste',
+  'sanitizer': 'Desinfektion',
+  'paper': 'Papier',
+  'pet': 'Tierbedarf',
+  'baby': 'Baby',
+  'pharmacy': 'Apotheke',
+  'medication': 'Medikamente',
+  'healing': 'Pflaster',
+  'mask': 'Maske',
+  'flower': 'Blume',
+  'garden': 'Garten',
+  'tools': 'Werkzeug',
+  'hardware': 'Baumarkt',
+  'lightbulb': 'Lampe',
+  'battery': 'Batterie',
+  'print': 'Drucker',
+  'car': 'Auto',
+  'fuel': 'Benzin',
+  'toy': 'Spielzeug',
+  'sport': 'Sport',
+  'clothes': 'Kleidung',
+  'default': 'Artikel',
+};
+
+const Map<String, List<String>> _localizedIconKeywords = {
+  'apple': ['aepfel', 'apfel'],
+  'lemon': ['zitronen'],
+  'feta': ['salatkaese', 'salatkase'],
+  'mozzarella': ['mini mozzarella'],
+  'cream_cheese': ['frischkaese', 'frischkase', 'brotaufstrich'],
+  'pretzel_sticks': ['salzstange', 'salzstangen'],
+  'cola': ['coca cola', 'pepsi'],
+  'mate': ['club mate', 'club-mate'],
+  'toothpaste': ['zahn pasta', 'zahncreme'],
+  'toothbrush': ['zahn buerste', 'zahn burste'],
+};
+
+const Map<String, int> _supermarketOrderByIcon = {
+  'vegetable': 10,
+  'lettuce': 10,
+  'carrot': 10,
+  'cucumber': 10,
+  'pepper': 10,
+  'potato': 10,
+  'onion': 10,
+  'broccoli': 10,
+  'mushroom': 10,
+  'garlic': 10,
+  'corn': 10,
+  'tomato': 10,
+  'cabbage': 10,
+  'eggplant': 10,
+  'pumpkin': 10,
+  'peas': 10,
+  'beans': 10,
+  'radish': 10,
+  'asparagus': 10,
+  'herbs': 10,
+  'apple': 12,
+  'banana': 12,
+  'orange': 12,
+  'lemon': 12,
+  'pear': 12,
+  'grapes': 12,
+  'strawberry': 12,
+  'watermelon': 12,
+  'pineapple': 12,
+  'kiwi': 12,
+  'peach': 12,
+  'cherry': 12,
+  'avocado': 12,
+  'bread': 20,
+  'cake': 20,
+  'cookie': 20,
+  'milk': 30,
+  'yogurt': 30,
+  'cream': 30,
+  'feta': 30,
+  'mozzarella': 30,
+  'cream_cheese': 30,
+  'cheese': 30,
+  'butter': 30,
+  'egg': 30,
+  'meat': 34,
+  'fish': 34,
+  'tofu': 34,
+  'frozen': 38,
+  'icecream': 38,
+  'pasta': 42,
+  'rice': 42,
+  'flour': 42,
+  'sugar': 42,
+  'salt': 42,
+  'oil': 42,
+  'cereal': 42,
+  'nuts': 42,
+  'honey': 46,
+  'jam': 46,
+  'canned': 46,
+  'soup': 46,
+  'chocolate': 50,
+  'pretzel_sticks': 50,
+  'chips': 50,
+  'juice': 60,
+  'cola': 60,
+  'mate': 60,
+  'water_bottle': 60,
+  'water': 60,
+  'coffee': 64,
+  'tea': 64,
+  'beer': 66,
+  'wine': 66,
+  'cleaning': 80,
+  'laundry': 80,
+  'soap': 80,
+  'toothpaste': 80,
+  'toothbrush': 80,
+  'sanitizer': 80,
+  'paper': 80,
+  'pet': 82,
+  'baby': 82,
+  'pharmacy': 84,
+  'medication': 84,
+  'healing': 84,
+  'mask': 84,
+  'flower': 86,
+  'garden': 86,
+  'tools': 88,
+  'hardware': 88,
+  'lightbulb': 88,
+  'battery': 88,
+  'print': 88,
+  'car': 88,
+  'fuel': 88,
+  'toy': 88,
+  'sport': 88,
+  'clothes': 88,
+};
 
 Color generatedIconAccent(String name, int variant) {
   final hue = (_stableHash('$name:$variant') % 360).toDouble();
@@ -480,6 +888,8 @@ int generatedIconVariant(String iconKey) {
 const Set<String> _drawnItemIconKeys = {
   'milk',
   'juice',
+  'cola',
+  'mate',
   'water_bottle',
   'yogurt',
   'cream',
@@ -516,6 +926,9 @@ const Set<String> _drawnItemIconKeys = {
   'asparagus',
   'herbs',
   'bread',
+  'feta',
+  'mozzarella',
+  'cream_cheese',
   'cheese',
   'butter',
   'egg',
@@ -531,9 +944,12 @@ const Set<String> _drawnItemIconKeys = {
   'honey',
   'jam',
   'chocolate',
+  'pretzel_sticks',
   'chips',
   'canned',
   'tofu',
+  'toothpaste',
+  'toothbrush',
 };
 
 bool hasDrawnItemIcon(String iconKey) {
@@ -641,9 +1057,22 @@ class _DrawnItemIconPainter extends CustomPainter {
           label: _cartonLabel(iconKey),
         );
         break;
+      case 'cola':
+      case 'mate':
       case 'water_bottle':
       case 'oil':
-        _drawBottle(canvas, size, stroke, thinStroke, oil: iconKey == 'oil');
+        _drawBottle(
+          canvas,
+          size,
+          stroke,
+          thinStroke,
+          oil: iconKey == 'oil',
+          label: switch (iconKey) {
+            'cola' => 'C',
+            'mate' => 'M',
+            _ => '',
+          },
+        );
         break;
       case 'yogurt':
         _drawYogurt(canvas, size, stroke, thinStroke);
@@ -729,6 +1158,17 @@ class _DrawnItemIconPainter extends CustomPainter {
       case 'bread':
         _drawBread(canvas, size, stroke, thinStroke);
         break;
+      case 'feta':
+      case 'mozzarella':
+      case 'cream_cheese':
+        _drawDairyPack(
+          canvas,
+          size,
+          stroke,
+          thinStroke,
+          label: _dairyLabel(iconKey),
+        );
+        break;
       case 'cheese':
         _drawCheese(canvas, size, stroke, thinStroke);
         break;
@@ -780,6 +1220,15 @@ class _DrawnItemIconPainter extends CustomPainter {
           chocolate: iconKey == 'chocolate',
         );
         break;
+      case 'pretzel_sticks':
+        _drawPretzelSticks(canvas, size, stroke, thinStroke);
+        break;
+      case 'toothpaste':
+        _drawToothpaste(canvas, size, stroke, thinStroke);
+        break;
+      case 'toothbrush':
+        _drawToothbrush(canvas, size, stroke, thinStroke);
+        break;
       default:
         _drawBag(canvas, size, stroke, thinStroke, label: '');
     }
@@ -799,6 +1248,15 @@ class _DrawnItemIconPainter extends CustomPainter {
       'flour' => 'M',
       'sugar' => 'Z',
       'cereal' => 'O',
+      _ => '',
+    };
+  }
+
+  String _dairyLabel(String key) {
+    return switch (key) {
+      'feta' => 'F',
+      'mozzarella' => 'M',
+      'cream_cheese' => 'F',
       _ => '',
     };
   }
@@ -852,6 +1310,7 @@ class _DrawnItemIconPainter extends CustomPainter {
     Paint stroke,
     Paint thinStroke, {
     required bool oil,
+    String label = '',
   }) {
     final w = size.width;
     final path = Path()
@@ -879,6 +1338,7 @@ class _DrawnItemIconPainter extends CustomPainter {
         thinStroke,
       );
     }
+    _drawLabel(canvas, size, label, w * 0.24);
   }
 
   void _drawYogurt(Canvas canvas, Size size, Paint stroke, Paint thinStroke) {
@@ -958,6 +1418,21 @@ class _DrawnItemIconPainter extends CustomPainter {
     required bool long,
   }) {
     final w = size.width;
+    if (long) {
+      final lemon = Path()
+        ..moveTo(w * 0.18, w * 0.52)
+        ..cubicTo(w * 0.3, w * 0.24, w * 0.68, w * 0.2, w * 0.84, w * 0.38)
+        ..cubicTo(w * 0.7, w * 0.7, w * 0.32, w * 0.78, w * 0.18, w * 0.52);
+      canvas.drawPath(lemon, stroke);
+      canvas.drawPath(
+        Path()
+          ..moveTo(w * 0.34, w * 0.52)
+          ..quadraticBezierTo(w * 0.52, w * 0.4, w * 0.7, w * 0.42),
+        thinStroke,
+      );
+      _drawLeaf(canvas, w, Offset(w * 0.7, w * 0.25), thinStroke);
+      return;
+    }
     final rect = long
         ? Rect.fromLTWH(w * 0.22, w * 0.36, w * 0.56, w * 0.32)
         : Rect.fromLTWH(w * 0.24, w * 0.24, w * 0.52, w * 0.52);
@@ -1462,6 +1937,41 @@ class _DrawnItemIconPainter extends CustomPainter {
     canvas.drawCircle(Offset(w * 0.57, w * 0.56), w * 0.035, thinStroke);
   }
 
+  void _drawDairyPack(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke, {
+    required String label,
+  }) {
+    final w = size.width;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.22, w * 0.28, w * 0.56, w * 0.46),
+        Radius.circular(w * 0.08),
+      ),
+      stroke,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.28, w * 0.2, w * 0.44, w * 0.16),
+        Radius.circular(w * 0.06),
+      ),
+      stroke,
+    );
+    canvas.drawLine(
+      Offset(w * 0.3, w * 0.48),
+      Offset(w * 0.7, w * 0.48),
+      thinStroke,
+    );
+    canvas.drawLine(
+      Offset(w * 0.34, w * 0.62),
+      Offset(w * 0.66, w * 0.62),
+      thinStroke,
+    );
+    _drawLabel(canvas, size, label, w * 0.24);
+  }
+
   void _drawEgg(Canvas canvas, Size size, Paint stroke, Paint thinStroke) {
     final w = size.width;
     canvas.drawOval(
@@ -1653,6 +2163,91 @@ class _DrawnItemIconPainter extends CustomPainter {
       Offset(w * 0.64, w * 0.67),
       thinStroke,
     );
+  }
+
+  void _drawPretzelSticks(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke,
+  ) {
+    final w = size.width;
+    final cup = Path()
+      ..moveTo(w * 0.24, w * 0.32)
+      ..lineTo(w * 0.76, w * 0.32)
+      ..lineTo(w * 0.68, w * 0.82)
+      ..lineTo(w * 0.32, w * 0.82)
+      ..close();
+    canvas.drawPath(cup, stroke);
+    for (final x in [0.36, 0.47, 0.58, 0.69]) {
+      canvas.drawLine(
+        Offset(w * x, w * 0.16),
+        Offset(w * (x - 0.08), w * 0.68),
+        thinStroke,
+      );
+    }
+    canvas.drawLine(
+      Offset(w * 0.3, w * 0.48),
+      Offset(w * 0.7, w * 0.48),
+      thinStroke,
+    );
+  }
+
+  void _drawToothpaste(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke,
+  ) {
+    final w = size.width;
+    final tube = Path()
+      ..moveTo(w * 0.18, w * 0.58)
+      ..lineTo(w * 0.62, w * 0.34)
+      ..lineTo(w * 0.78, w * 0.5)
+      ..lineTo(w * 0.34, w * 0.76)
+      ..close();
+    canvas.drawPath(tube, stroke);
+    canvas.drawLine(
+      Offset(w * 0.3, w * 0.58),
+      Offset(w * 0.62, w * 0.4),
+      thinStroke,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.72, w * 0.42, w * 0.14, w * 0.16),
+        Radius.circular(w * 0.03),
+      ),
+      thinStroke,
+    );
+  }
+
+  void _drawToothbrush(
+    Canvas canvas,
+    Size size,
+    Paint stroke,
+    Paint thinStroke,
+  ) {
+    final w = size.width;
+    canvas.drawLine(
+      Offset(w * 0.22, w * 0.78),
+      Offset(w * 0.72, w * 0.28),
+      stroke,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.64, w * 0.18, w * 0.22, w * 0.16),
+        Radius.circular(w * 0.04),
+      ),
+      stroke,
+    );
+    for (final x in [0.68, 0.74, 0.8]) {
+      canvas.drawLine(
+        Offset(w * x, w * 0.18),
+        Offset(w * x, w * 0.08),
+        thinStroke,
+      );
+    }
+    canvas.drawCircle(Offset(w * 0.34, w * 0.66), w * 0.018, thinStroke);
   }
 
   void _drawSalt(Canvas canvas, Size size, Paint stroke, Paint thinStroke) {

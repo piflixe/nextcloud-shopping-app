@@ -63,6 +63,16 @@ class AppController extends ChangeNotifier {
 
   bool get hasLinkedDocument => _activeProfile.hasLinkedStorage;
 
+  List<String> get storeSuggestions {
+    final stores = _list.items
+        .map((item) => item.note.trim())
+        .where((store) => store.isNotEmpty)
+        .toSet()
+        .toList();
+    stores.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return stores;
+  }
+
   SyncState get syncState {
     if (!hasLinkedDocument) {
       return SyncState.localOnly;
@@ -210,7 +220,9 @@ class AppController extends ChangeNotifier {
           (candidate) => candidate.id == item.id
               ? candidate.copyWith(
                   state: destination,
-                  order: _nextOrder(destination),
+                  order: destination == ShoppingItemState.open
+                      ? _defaultOrderFor(destination, candidate.icon)
+                      : _nextOrder(destination),
                 )
               : candidate,
         )
@@ -237,13 +249,14 @@ class AppController extends ChangeNotifier {
       return;
     }
 
+    final icon = suggestIconKey(name);
     final item = ShoppingItem(
       id: _createId(name),
       name: name,
       amount: '',
       note: '',
-      icon: suggestIconKey(name),
-      order: _nextOrder(ShoppingItemState.open),
+      icon: icon,
+      order: _defaultOrderFor(ShoppingItemState.open, icon),
       state: ShoppingItemState.open,
     );
     await _save(_list.touch([..._list.items, item]));
@@ -260,6 +273,45 @@ class AppController extends ChangeNotifier {
     final updated = _list.items
         .where((candidate) => candidate.id != item.id)
         .toList();
+    await _save(_list.touch(updated));
+  }
+
+  Future<void> moveItem({
+    required ShoppingItem item,
+    required ShoppingItemState destinationState,
+    required String destinationStore,
+    ShoppingItem? beforeItem,
+  }) async {
+    if (beforeItem?.id == item.id &&
+        item.state == destinationState &&
+        item.note.trim() == destinationStore.trim()) {
+      return;
+    }
+
+    final moved = item.copyWith(
+      state: destinationState,
+      note: destinationStore.trim(),
+    );
+    final destinationItems = _orderedItemsForState(
+      destinationState,
+    ).where((candidate) => candidate.id != item.id).toList();
+    final insertIndex = beforeItem == null
+        ? destinationItems.length
+        : destinationItems.indexWhere(
+            (candidate) => candidate.id == beforeItem.id,
+          );
+    destinationItems.insert(
+      insertIndex < 0 ? destinationItems.length : insertIndex,
+      moved,
+    );
+
+    final normalizedDestinationItems = <String, ShoppingItem>{
+      for (var i = 0; i < destinationItems.length; i++)
+        destinationItems[i].id: destinationItems[i].copyWith(order: i),
+    };
+    final updated = _list.items.map((candidate) {
+      return normalizedDestinationItems[candidate.id] ?? candidate;
+    }).toList();
     await _save(_list.touch(updated));
   }
 
@@ -294,6 +346,35 @@ class AppController extends ChangeNotifier {
     }
     return sameState.map((item) => item.order).reduce((a, b) => a > b ? a : b) +
         1;
+  }
+
+  int _defaultOrderFor(ShoppingItemState state, String iconKey) {
+    if (state != ShoppingItemState.open) {
+      return _nextOrder(state);
+    }
+    final rank = supermarketOrderForIcon(iconKey);
+    final rankBase = rank * 1000;
+    final sameRankOrders = _list.items
+        .where((item) => item.state == state)
+        .where((item) => supermarketOrderForIcon(item.icon) == rank)
+        .map((item) => item.order)
+        .where((order) => order >= rankBase && order < rankBase + 1000);
+    if (sameRankOrders.isEmpty) {
+      return rankBase;
+    }
+    return sameRankOrders.reduce((a, b) => a > b ? a : b) + 1;
+  }
+
+  List<ShoppingItem> _orderedItemsForState(ShoppingItemState state) {
+    final items = _list.items.where((item) => item.state == state).toList();
+    items.sort((a, b) {
+      final orderCompare = a.order.compareTo(b.order);
+      if (orderCompare != 0) {
+        return orderCompare;
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return items;
   }
 
   Future<void> _save(ShoppingListData nextList) async {

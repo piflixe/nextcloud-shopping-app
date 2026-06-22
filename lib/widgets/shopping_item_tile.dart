@@ -58,9 +58,9 @@ class ShoppingItemTile extends StatelessWidget {
                   10 + textHeight + (hasAmount ? 22.0 : 0.0) + 8;
               final maxIconByHeight = (shortestSide - reservedHeight).clamp(
                 38.0,
-                76.0,
+                hasAmount ? 82.0 : 86.0,
               );
-              final iconSize = (shortestSide * (hasAmount ? 0.43 : 0.56))
+              final iconSize = (shortestSide * (hasAmount ? 0.5 : 0.62))
                   .clamp(38.0, maxIconByHeight)
                   .toDouble();
 
